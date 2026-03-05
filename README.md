@@ -22,15 +22,32 @@ Este sistema es para **fines educativos**. El autor no se responsabiliza del uso
 
 ---
 
-## 📥 Instalación de Arch Linux Base
+## 📥 Descargar Arch Linux 32 bits
 
-### 📌 Descargar Arch Linux 32 bits:
+### 🌐 Mirrors oficiales de Arch Linux 32
+
+| Región | Mirror |
+|--------|--------|
+| **Alemania** | [de.mirror.archlinux32.org](http://de.mirror.archlinux32.org) |
+| **Alemania** | [mirror.archlinux32.org](http://mirror.archlinux32.org) |
+| **Bielorrusia** | [mirror.datacenter.by](http://mirror.datacenter.by) |
+| **Canadá** | [mirror.qctronics.com](http://mirror.qctronics.com) |
+| **Estados Unidos** | [mirror.clarkson.edu](http://mirror.clarkson.edu) |
+| **Estados Unidos** | [mirror.math.princeton.edu](http://mirror.math.princeton.edu) |
+| **Francia** | [archlinux32.agoctrl.org](http://archlinux32.agoctrl.org) |
+| **Grecia** | [gr.mirror.archlinux32.org](http://gr.mirror.archlinux32.org) |
+| **Polonia** | [mirror.juniorjpdj.pl](http://mirror.juniorjpdj.pl) |
+| **Rusia** | [mirror.yandex.ru](http://mirror.yandex.ru) |
+| **Suiza** | [archlinux32.andreasbaumann.cc](http://archlinux32.andreasbaumann.cc) |
+
+### 📦 Descargar ISO
 
 | Versión | Enlace |
 |---------|--------|
-| **ISO Oficial** | [https://mirror.archlinux32.org/iso/](https://mirror.archlinux32.org/iso/) |
-| **Última versión** | [https://mirror.archlinux32.org/iso/latest/](https://mirror.archlinux32.org/iso/latest/) |
-| **Eee PC 900** | [https://archlinux32.org/download/](https://archlinux32.org/download/) |
+| **Última versión (i686)** | [https://mirror.archlinux32.org/iso/latest/](https://mirror.archlinux32.org/iso/latest/) |
+| **Release actual: 2024.07.10** | [Descargar ISO (796 MB)](https://mirror.archlinux32.org/iso/2024.07.10/archlinux32-2024.07.10-i686.iso) |
+| **Torrent (i686)** | [Magnet link](magnet:?xt=urn:btih:...) |
+| **Checksums** | [MD5: d66328286370366cae23519169b1c728](https://mirror.archlinux32.org/iso/2024.07.10/md5sums.txt) |
 
 ---
 
@@ -102,9 +119,8 @@ installxoni xonispam    # Pruebas éticas
 
 ## 🌐 Enlaces
 
-- [Repositorio](https://github.com/XONIDU/xoniarch32)
+- [Repositorio XONIARCH32](https://github.com/XONIDU/xoniarch32)
+- [Arch Linux 32 Official](https://archlinux32.org/)
 - [XONIPAGE](https://xonipage.xonidu.com/)
 - [XONIENCRIPT](https://xoniencript.xonidu.com/)
 - [XONITRES](https://xonitres.xonidu.com/)
-- [Arch Linux 32](https://archlinux32.org/)
-
