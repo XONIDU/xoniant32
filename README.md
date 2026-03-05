@@ -46,23 +46,80 @@ Este sistema es para **fines educativos**. El autor no se responsabiliza del uso
 |---------|--------|
 | **Última versión (i686)** | [https://mirror.archlinux32.org/iso/latest/](https://mirror.archlinux32.org/iso/latest/) |
 | **Release actual: 2024.07.10** | [Descargar ISO (796 MB)](https://mirror.archlinux32.org/iso/2024.07.10/archlinux32-2024.07.10-i686.iso) |
-| **Torrent (i686)** | [Magnet link](magnet:?xt=urn:btih:...) |
-| **Checksums** | [MD5: d66328286370366cae23519169b1c728](https://mirror.archlinux32.org/iso/2024.07.10/md5sums.txt) |
 
 ---
 
 ## 🚀 Instalación de XONIARCH32
 
+### Paso 1: Instalar Arch Linux 32 bits base
+Sigue la [guía oficial de instalación de Arch Linux](https://wiki.archlinux.org/title/Installation_guide) adaptada para 32 bits.
+
+### Paso 2: Descargar e instalar XONIARCH32
+
 ```bash
-# Descargar e instalar (como root)
-curl -o xoniarch-install.sh https://raw.githubusercontent.com/XONIDU/xoniarch32/main/xoniarch-install.sh
+# Como root, primero configura las claves PGP (necesario en sistema live)
+pacman-key --init
+pacman-key --populate archlinux32
+pacman-key --refresh-keys
+
+# Sincronizar bases de datos
+pacman -Sy
+
+# Instalar git
+pacman -S git
+
+# Clonar el repositorio
+git clone https://github.com/XONIDU/xoniarch32.git
+cd xoniarch32
+
+# Ejecutar el instalador
 bash xoniarch-install.sh
+
+# Reiniciar
 reboot
+```
+
+### ⚠️ Solución de errores comunes
+
+#### Error: "signature is unknown trust" o "invalid or corrupted package (PGP signature)"
+
+Este error ocurre cuando las claves PGP no están configuradas correctamente. Solución:
+
+```bash
+# Inicializar el llavero de claves
+pacman-key --init
+
+# Cargar claves de archlinux32
+pacman-key --populate archlinux32
+pacman-key --populate archlinux  # Opcional, para claves adicionales
+
+# Actualizar claves
+pacman-key --refresh-keys
+
+# Sincronizar bases de datos e instalar
+pacman -Sy git
+```
+
+#### Error: "database file for 'core' does not exist"
+
+```bash
+# Sincronizar bases de datos primero
+pacman -Sy
+```
+
+#### Error: "target not found: git"
+
+```bash
+# Verificar que los repositorios están habilitados en /etc/pacman.conf
+# Las líneas [core], [extra] y [community] NO deben estar comentadas
+
+# Luego sincronizar e instalar
+pacman -Sy git
 ```
 
 ---
 
-## 📦 Uso
+## 📦 Uso después de la instalación
 
 | Comando | Descripción |
 |---------|-------------|
@@ -80,7 +137,7 @@ reboot
 
 ---
 
-## 🛠️ Herramientas XONI
+## 🛠️ Herramientas XONI disponibles
 
 ```bash
 installxoni xonitube    # Reproductor de videos
@@ -99,7 +156,7 @@ installxoni xonispam    # Pruebas éticas
 
 ---
 
-## 🔧 Requisitos
+## 🔧 Requisitos del sistema
 
 - **Procesador**: 32 bits (Intel Pentium III / Celeron)
 - **RAM**: 512 MB (1 GB recomendado)
@@ -117,10 +174,18 @@ installxoni xonispam    # Pruebas éticas
 
 ---
 
-## 🌐 Enlaces
+## 🌐 Enlaces útiles
 
 - [Repositorio XONIARCH32](https://github.com/XONIDU/xoniarch32)
 - [Arch Linux 32 Official](https://archlinux32.org/)
+- [Guía de instalación de Arch Linux](https://wiki.archlinux.org/title/Installation_guide)
 - [XONIPAGE](https://xonipage.xonidu.com/)
 - [XONIENCRIPT](https://xoniencript.xonidu.com/)
 - [XONITRES](https://xonitres.xonidu.com/)
+```
+
+Este README ahora incluye:
+- ✅ Pasos detallados para solucionar errores de PGP
+- ✅ Comandos para inicializar `pacman-key`
+- ✅ Solución a errores comunes como "target not found" y "database file does not exist"
+- ✅ Instrucciones claras para instalar git y clonar el repositorio
