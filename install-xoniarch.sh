@@ -2,8 +2,6 @@
 # XONIARCH32 - INSTALADOR COMPLETO DESDE LIVE USB
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniarch32
-# Versión: 1.0
-# Este script instala Arch Linux 32 bits + Xoniarch32 en un solo paso.
 
 set -e
 
@@ -29,23 +27,14 @@ warn() {
 }
 
 # ============================================
-# 1. VERIFICAR QUE SE EJECUTA EN LIVE
+# VERIFICAR QUE SE EJECUTA EN LIVE USB
 # ============================================
 if [ ! -d /run/archiso ]; then
     error_exit "Este script debe ejecutarse desde el live USB de Arch Linux 32 bits."
 fi
 
 # ============================================
-# 2. CONECTIVIDAD A INTERNET
-# ============================================
-info "Verificando conexión a internet..."
-ping -c 3 8.8.8.8 > /dev/null 2>&1 || {
-    warn "No se tiene conexión. Intenta configurar la red con 'iwctl' o 'nmtui'."
-    exit 1
-}
-
-# ============================================
-# 3. SELECCIÓN DE MIRROR FUNCIONAL
+# SELECCIÓN DE MIRROR FUNCIONAL (archlinux32)
 # ============================================
 info "Buscando un mirror funcional de archlinux32..."
 
@@ -80,7 +69,7 @@ fi
 info "Mirror seleccionado: $WORKING_MIRROR"
 
 # ============================================
-# 4. CONFIGURAR PACMAN TEMPORALMENTE
+# CONFIGURAR PACMAN TEMPORALMENTE
 # ============================================
 cat > /etc/pacman.conf << EOF
 [options]
@@ -104,15 +93,15 @@ Server = $WORKING_MIRROR/\$arch/\$repo
 EOF
 
 # ============================================
-# 5. INICIALIZAR CLAVES PGP
+# INICIALIZAR CLAVES PGP (evita errores de firma)
 # ============================================
-info "Inicializando claves PGP para evitar errores de firma..."
+info "Inicializando claves PGP..."
 pacman-key --init 2>/dev/null || true
 pacman-key --populate archlinux32 2>/dev/null || true
 pacman -Sy --noconfirm archlinux32-keyring 2>/dev/null || true
 
 # ============================================
-# 6. SELECCIONAR DISCO DE INSTALACIÓN
+# SELECCIONAR DISCO DE INSTALACIÓN
 # ============================================
 clear
 echo -e "${GREEN}========================================${NC}"
@@ -133,7 +122,7 @@ if [ ! -b "/dev/$DISK" ]; then
 fi
 
 # ============================================
-# 7. CONFIRMAR BORRADO
+# CONFIRMAR BORRADO
 # ============================================
 echo ""
 echo -e "${RED}¡ATENCIÓN! Se borrarán TODOS los datos en /dev/$DISK${NC}"
@@ -145,7 +134,7 @@ if [ "$CONFIRM" != "YES" ]; then
 fi
 
 # ============================================
-# 8. OPCIÓN DE PARTICIONADO
+# OPCIÓN DE PARTICIONADO
 # ============================================
 echo ""
 echo "Elige el tipo de particionado:"
@@ -181,7 +170,6 @@ if [ "$PART_OPT" = "1" ]; then
     if [ -n "$SWAP_PART" ]; then
         mkswap "/dev/$SWAP_PART"
     fi
-
 else
     # Particionado manual
     info "Abriendo fdisk para particionado manual. Cuando termines, escribe 'exit' para continuar."
@@ -194,7 +182,7 @@ else
 fi
 
 # ============================================
-# 9. MONTAR SISTEMA
+# MONTAR SISTEMA
 # ============================================
 info "Montando sistema en /mnt..."
 mount "/dev/$ROOT_PART" /mnt
@@ -203,19 +191,19 @@ if [ -n "$SWAP_PART" ]; then
 fi
 
 # ============================================
-# 10. INSTALAR SISTEMA BASE
+# INSTALAR SISTEMA BASE
 # ============================================
 info "Instalando sistema base (esto puede tardar varios minutos)..."
 pacstrap /mnt base base-devel linux-firmware grub networkmanager nano sudo git
 
 # ============================================
-# 11. GENERAR FSTAB
+# GENERAR FSTAB
 # ============================================
 info "Generando fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # ============================================
-# 12. CHROOT Y CONFIGURACIÓN INICIAL
+# CHROOT Y CONFIGURACIÓN INICIAL
 # ============================================
 info "Configurando el sistema..."
 
@@ -223,7 +211,7 @@ cat > /mnt/root/chroot-config.sh << 'EOF'
 #!/bin/bash
 # Configuración dentro del chroot
 
-# Zona horaria (ajusta si quieres otra)
+# Zona horaria
 ln -sf /usr/share/zoneinfo/America/Mexico_City /etc/localtime
 hwclock --systohc
 
@@ -250,17 +238,19 @@ sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 # Habilitar servicios
 systemctl enable NetworkManager
 
-# GRUB (detecta el disco automáticamente)
-grub-install --target=i386-pc /dev/$(lsblk -no pkgnamel /dev/$ROOT_PART)
+# GRUB
+grub-install --target=i386-pc /dev/$(lsblk -no pkname /dev/ROOT_PART_PLACEHOLDER)
 grub-mkconfig -o /boot/grub/grub.cfg
-
 EOF
+
+# Reemplazar marcador por el disco real
+sed -i "s|ROOT_PART_PLACEHOLDER|$ROOT_PART|g" /mnt/root/chroot-config.sh
 
 chmod +x /mnt/root/chroot-config.sh
 arch-chroot /mnt /root/chroot-config.sh
 
 # ============================================
-# 13. DESCARGAR Y EJECUTAR SCRIPT POST-INSTALACIÓN (Xoniarch32)
+# DESCARGAR Y EJECUTAR SCRIPT DE PERSONALIZACIÓN XONIARCH
 # ============================================
 info "Descargando script de personalización Xoniarch32..."
 curl -sSL https://raw.githubusercontent.com/XONIDU/xoniarch32/main/xoniarch-install.sh -o /mnt/root/xoniarch-install.sh
@@ -270,12 +260,12 @@ info "Ejecutando personalización dentro del chroot..."
 arch-chroot /mnt /root/xoniarch-install.sh
 
 # ============================================
-# 14. LIMPIEZA FINAL
+# LIMPIEZA FINAL
 # ============================================
 rm -f /mnt/root/chroot-config.sh /mnt/root/xoniarch-install.sh
 
 # ============================================
-# 15. DESMONTAR Y FINALIZAR
+# DESMONTAR Y FINALIZAR
 # ============================================
 info "Desmontando particiones..."
 umount -R /mnt
@@ -294,5 +284,3 @@ echo "Usuario: xoniarch | Contraseña: xoniarch"
 echo "Root: root | Contraseña: root"
 echo ""
 echo "Después del reinicio, ejecuta 'xoniarch-help' para más información."
-echo ""
-echo -e "${YELLOW}¡Disfruta tu nuevo sistema Xoniarch32!${NC}"
