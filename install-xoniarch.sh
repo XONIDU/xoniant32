@@ -1,7 +1,8 @@
 #!/bin/bash
-# XONIARCH32 - INSTALADOR ÚNICO Y COMPLETO
+# XONIARCH32 - INSTALADOR ÚNICO Y COMPLETO v4.2.0
 # Autor: Darian Alberto Camacho Salas
-# Este script contiene TODO lo necesario para instalar Xoniarch32
+# Repositorio: https://github.com/XONIDU/xoniarch32
+# Este script contiene todo lo necesario para instalar Xoniarch32 desde un live USB.
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -12,51 +13,52 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 error_exit() { echo -e "${RED}[ERROR] $1${NC}" >&2; exit 1; }
-info() { echo -e "${GREEN}[INFO] $1${NC}"; }
-warn() { echo -e "${YELLOW}[AVISO] $1${NC}"; }
+info()  { echo -e "${GREEN}[INFO] $1${NC}"; }
+warn()  { echo -e "${YELLOW}[AVISO] $1${NC}"; }
 
 # ============================================
-# 1. VERIFICAR ENTORNO LIVE
+# 1. Verificar entorno live
 # ============================================
 if [ ! -d /run/archiso ]; then
     error_exit "Este script debe ejecutarse desde el live USB de Arch Linux 32 bits."
 fi
 
 # ============================================
-# 2. SELECCIONAR DISCO
+# 2. Seleccionar disco de instalación
 # ============================================
 clear
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}   XONIARCH32 - INSTALADOR COMPLETO    ${NC}"
-echo -e "${GREEN}========================================${NC}\n"
-echo -e "${YELLOW}Discos disponibles:${NC}"
+echo "========================================"
+echo "   XONIARCH32 v4.2.0 - INSTALADOR     "
+echo "========================================"
+echo ""
+echo "Discos disponibles:"
 lsblk -d -o NAME,SIZE,MODEL,TYPE | grep -E "disk|NAME"
 echo ""
-read -p "¿En qué disco quieres instalar? (ej: sda): " DISK
+read -p "¿En qué disco quieres instalar Xoniarch32? (ej: sda): " DISK
 [ -z "$DISK" ] && error_exit "No se seleccionó ningún disco."
 [ ! -b "/dev/$DISK" ] && error_exit "El disco /dev/$DISK no existe."
 
 echo ""
-echo -e "${RED}¡ATENCIÓN! Se borrarán TODOS los datos en /dev/$DISK${NC}"
+echo "¡ATENCION! Se borrarán TODOS los datos en /dev/$DISK"
 lsblk "/dev/$DISK"
 read -p "¿Estás seguro? (escribe YES): " CONFIRM
 [ "$CONFIRM" != "YES" ] && error_exit "Instalación cancelada."
 
 # ============================================
-# 3. PARTICIONADO
+# 3. Opciones de particionado
 # ============================================
 echo ""
-echo "Elige particionado:"
+echo "Elige el tipo de particionado:"
 echo "1) Automático (swap opcional)"
-echo "2) Manual (fdisk)"
-read -p "Opción [1/2]: " PART_OPT
+echo "2) Manual (usar fdisk tú mismo)"
+read -p "Opcion [1/2]: " PART_OPT
 
 if [ "$PART_OPT" = "1" ]; then
-    read -p "¿Crear swap? (s/n): " SWAP_OPT
+    read -p "¿Crear partición swap? (s/n): " SWAP_OPT
     if [[ "$SWAP_OPT" =~ ^[Ss]$ ]]; then
-        read -p "Tamaño swap en GB (ej: 1): " SWAP_SIZE
+        read -p "Tamaño de swap en GB (ej: 1): " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-1}
-        info "Particionando con swap de ${SWAP_SIZE}G..."
+        info "Particionando /dev/$DISK con swap de ${SWAP_SIZE}G..."
         parted "/dev/$DISK" mklabel msdos
         parted "/dev/$DISK" mkpart primary linux-swap 1MiB "${SWAP_SIZE}GiB"
         parted "/dev/$DISK" mkpart primary ext4 "${SWAP_SIZE}GiB" 100%
@@ -64,101 +66,159 @@ if [ "$PART_OPT" = "1" ]; then
         ROOT_PART="${DISK}2"
         SWAP_PART="${DISK}1"
     else
-        info "Particionando sin swap..."
+        info "Particionando /dev/$DISK sin swap..."
         parted "/dev/$DISK" mklabel msdos
         parted "/dev/$DISK" mkpart primary ext4 1MiB 100%
         parted "/dev/$DISK" set 1 boot on
         ROOT_PART="${DISK}1"
         SWAP_PART=""
     fi
+
+    info "Formateando particiones..."
     mkfs.ext4 -F "/dev/$ROOT_PART"
     [ -n "$SWAP_PART" ] && mkswap "/dev/$SWAP_PART"
 else
-    info "Abriendo fdisk. Cuando termines, escribe 'exit'."
+    info "Abriendo fdisk para particionado manual. Cuando termines, escribe 'exit' para continuar."
     fdisk "/dev/$DISK"
+    echo ""
     lsblk "/dev/$DISK"
-    read -p "Partición raíz (ej: ${DISK}2): " ROOT_PART
-    read -p "Partición swap (vacío si no): " SWAP_PART
+    read -p "Indica la partición raíz (ej: ${DISK}2): " ROOT_PART
+    [ -z "$ROOT_PART" ] && error_exit "No se indicó partición raíz."
+    read -p "Indica la partición swap (dejar vacío si no hay): " SWAP_PART
 fi
 
-# Montar
-info "Montando sistema..."
+# Montar sistema
+info "Montando sistema en /mnt..."
 mount "/dev/$ROOT_PART" /mnt
 [ -n "$SWAP_PART" ] && swapon "/dev/$SWAP_PART" 2>/dev/null || true
 
 # ============================================
-# 4. CONFIGURAR PACMAN Y MIRRORS
+# 4. Selección del mejor mirror de archlinux32
 # ============================================
-info "Configurando mirrors..."
+info "Buscando el mirror más rápido de archlinux32..."
+
 MIRRORS=(
     "https://mirror.archlinux32.org"
     "https://ftp.halifax.rwth-aachen.de/archlinux32"
     "https://mirror.cyberbits.eu/archlinux32"
+    "https://mirror.ubnt.net/archlinux32"
+    "https://mirror.accum.se/mirror/archlinux32"
+    "https://de.mirror.archlinux32.org"
+    "https://gr.mirror.archlinux32.org"
+    "https://mirror.clarkson.edu/archlinux32"
+    "https://mirror.math.princeton.edu/pub/archlinux32"
+    "https://archlinux32.andreasbaumann.cc"
 )
-WORKING_MIRROR=""
+
+best_mirror=""
+best_time=999999
 for mirror in "${MIRRORS[@]}"; do
-    echo -n "Probando $mirror... "
+    echo -n "Probando $mirror ... "
+    start=$(date +%s%N)
     if curl -s --head --max-time 5 "${mirror}/core/os/i686/core.db" >/dev/null 2>&1; then
-        echo -e "${GREEN}OK${NC}"
-        WORKING_MIRROR="$mirror"
-        break
+        end=$(date +%s%N)
+        time_ms=$(( (end - start) / 1000000 ))
+        echo "OK (${time_ms}ms)"
+        if [ $time_ms -lt $best_time ]; then
+            best_time=$time_ms
+            best_mirror="$mirror"
+        fi
     else
-        echo -e "${RED}FALLÓ${NC}"
+        echo "FALLÓ"
     fi
 done
-WORKING_MIRROR=${WORKING_MIRROR:-"https://mirror.archlinux32.org"}
 
+if [ -z "$best_mirror" ]; then
+    warn "No se encontró ningún mirror funcional. Usando el mirror por defecto."
+    best_mirror="https://mirror.archlinux32.org"
+else
+    info "Mirror más rápido: $best_mirror (${best_time}ms)"
+fi
+
+# Configurar pacman con ese mirror y varios de respaldo
 cat > /etc/pacman.conf << EOF
 [options]
-Architecture = i686
-SigLevel = Never
+HoldPkg         = pacman glibc
+Architecture    = i686
+SigLevel        = Never
 LocalFileSigLevel = Never
 RemoteFileSigLevel = Never
 ParallelDownloads = 5
+Color
+CheckSpace
+DisableDownloadTimeout
+Timeout = 30
+
 [core]
-Server = $WORKING_MIRROR/\$arch/\$repo
+Server = $best_mirror/\$arch/\$repo
+Server = https://mirror.archlinux32.org/\$arch/\$repo
+Server = https://ftp.halifax.rwth-aachen.de/archlinux32/\$arch/\$repo
+
 [extra]
-Server = $WORKING_MIRROR/\$arch/\$repo
+Server = $best_mirror/\$arch/\$repo
+Server = https://mirror.archlinux32.org/\$arch/\$repo
+Server = https://ftp.halifax.rwth-aachen.de/archlinux32/\$arch/\$repo
+
 [community]
-Server = $WORKING_MIRROR/\$arch/\$repo
+Server = $best_mirror/\$arch/\$repo
+Server = https://mirror.archlinux32.org/\$arch/\$repo
+Server = https://ftp.halifax.rwth-aachen.de/archlinux32/\$arch/\$repo
 EOF
 
-# Claves PGP
+# ============================================
+# 5. Inicializar claves PGP
+# ============================================
+info "Inicializando claves PGP..."
 pacman-key --init 2>/dev/null || true
 pacman-key --populate archlinux32 2>/dev/null || true
 pacman -Sy --noconfirm archlinux32-keyring 2>/dev/null || true
 
 # ============================================
-# 5. INSTALAR SISTEMA BASE
+# 6. Instalar sistema base
 # ============================================
-info "Instalando sistema base (puede tardar)..."
-pacstrap /mnt base base-devel linux-firmware grub networkmanager nano sudo git
+info "Instalando sistema base (puede tardar 10-20 minutos)..."
+pacstrap /mnt base base-devel linux-firmware grub networkmanager nano sudo git || {
+    error_exit "Falló la instalación base. Revisa la conexión a internet."
+}
 
 # ============================================
-# 6. CONFIGURACIÓN BÁSICA
+# 7. Generar fstab
 # ============================================
-info "Configurando sistema básico..."
+info "Generando fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
 
-# Crear script de configuración
+# ============================================
+# 8. Configuración básica dentro del chroot
+# ============================================
+info "Configurando sistema base..."
+
 cat > /mnt/root/chroot-config.sh << 'CONFIG'
 #!/bin/bash
+# Zona horaria
 ln -sf /usr/share/zoneinfo/America/Mexico_City /etc/localtime
 hwclock --systohc
+
+# Localización
 echo "es_MX.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 echo "LANG=es_MX.UTF-8" > /etc/locale.conf
 echo "KEYMAP=es" > /etc/vconsole.conf
+
+# Hostname
 echo "xoniarch" > /etc/hostname
 cat > /etc/hosts << HOSTS
 127.0.0.1   localhost
 ::1         localhost
 127.0.1.1   xoniarch.localdomain xoniarch
 HOSTS
+
+# Usuario y sudo
 useradd -m -G wheel -s /bin/bash xoniarch
 echo "xoniarch:xoniarch" | chpasswd
 echo "root:root" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+# Habilitar servicios
 systemctl enable NetworkManager
 CONFIG
 
@@ -166,41 +226,36 @@ chmod +x /mnt/root/chroot-config.sh
 arch-chroot /mnt /root/chroot-config.sh
 
 # ============================================
-# 7. INSTALAR GRUB
+# 9. Instalar GRUB
 # ============================================
+info "Instalando GRUB..."
 arch-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 # ============================================
-# 8. PERSONALIZACIÓN XONIARCH32 (TODO INCLUIDO)
-# ============================================
-info "Aplicando personalización Xoniarch32..."
-
-# Crear estructura de directorios
-arch-chroot /mnt mkdir -p /usr/local/bin /opt/xoniarch/bin /etc/skel/.config/openbox
-arch-chroot /mnt mkdir -p /etc/skel/.config/tint2 /usr/share/backgrounds
-
-# ============================================
-# 8.1 INSTALAR PAQUETES ADICIONALES
+# 10. Instalar paquetes adicionales (Xorg, Openbox, herramientas)
 # ============================================
 info "Instalando paquetes adicionales..."
 arch-chroot /mnt pacman -S --noconfirm \
-    xorg-server xorg-xinit xorg-xrandr xterm \
-    openbox obconf tint2 feh picom nitrogen \
+    xorg-server xorg-xinit xorg-xrandr xorg-xinput xorg-xauth \
+    xterm openbox obconf tint2 feh picom nitrogen \
     rxvt-unicode pcmanfm ranger geany mousepad \
     firefox mpv vlc ffmpeg yt-dlp \
     alsa-utils pulseaudio pavucontrol \
     xf86-video-intel xf86-video-vesa mesa \
     sddm tlp acpi acpid lm_sensors
 
-# Habilitar servicios
+# Habilitar servicios adicionales
 arch-chroot /mnt systemctl enable sddm
 arch-chroot /mnt systemctl enable tlp
 arch-chroot /mnt systemctl enable acpid
 
 # ============================================
-# 8.2 CONFIGURACIÓN DE OPENBOX (TERMINAL FIJA)
+# 11. Configuración de Openbox (terminal fija)
 # ============================================
+info "Configurando Openbox con terminal fija..."
+mkdir -p /mnt/etc/skel/.config/openbox
+
 cat > /mnt/etc/skel/.config/openbox/rc.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
@@ -251,8 +306,9 @@ exec openbox-session
 EOF
 
 # ============================================
-# 8.3 CONFIGURACIÓN DE TINT2
+# 12. Configuración de tint2
 # ============================================
+mkdir -p /mnt/etc/skel/.config/tint2
 cat > /mnt/etc/skel/.config/tint2/tint2rc << 'EOF'
 panel_items = LTSC
 panel_size = 100% 30
@@ -265,8 +321,11 @@ clock_format = %H:%M
 EOF
 
 # ============================================
-# 8.4 SCRIPTS PRINCIPALES XONIARCH
+# 13. Scripts personalizados de Xoniarch
 # ============================================
+info "Creando scripts de Xoniarch..."
+
+# installxoni: instala herramientas desde GitHub
 cat > /mnt/usr/local/bin/installxoni << 'EOF'
 #!/bin/bash
 REPO_BASE="https://github.com/XONIDU"
@@ -274,7 +333,7 @@ DIR="/opt/xoniarch"
 [ ! -d "$DIR" ] && mkdir -p "$DIR"
 cd "$DIR"
 if [ -z "$1" ]; then
-    read -p "Herramienta a instalar: " TOOL
+    read -p "Herramienta a instalar (ej: xonitube): " TOOL
 else
     TOOL="$1"
 fi
@@ -286,67 +345,85 @@ fi
 find "$TOOL" -name "*.py" -o -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 for f in $(find "$TOOL" -maxdepth 2 -name "*.py" -o -name "*.sh" 2>/dev/null | grep -v "__"); do
     ln -sf "$(pwd)/$f" "/usr/local/bin/$(basename $f .py)" 2>/dev/null || true
+    ln -sf "$(pwd)/$f" "/usr/local/bin/$(basename $f .sh)" 2>/dev/null || true
 done
-echo "✓ $TOOL instalado"
+echo "[OK] $TOOL instalado"
 EOF
 
+# xoniarch-update: actualiza todas las herramientas instaladas
 cat > /mnt/usr/local/bin/xoniarch-update << 'EOF'
 #!/bin/bash
 cd /opt/xoniarch
 for tool in */; do
     [ -d "$tool" ] && (cd "$tool" && git pull)
 done
-echo "✓ Actualización completada"
+echo "[OK] Actualización completada"
 EOF
 
+# xoniarch-help: muestra ayuda
 cat > /mnt/usr/local/bin/xoniarch-help << 'EOF'
 #!/bin/bash
 cat << 'HELP'
-╔════════════════════════════════════╗
-║    XONIARCH32 - AYUDA              ║
-╚════════════════════════════════════╝
+========================================
+   XONIARCH32 v4.2.0 - AYUDA
+========================================
 COMANDOS:
-  installxoni <herramienta>  : Instalar herramienta XONI
-  xoniarch-update            : Actualizar todo
-  xoniarch-menu               : Menú interactivo
-  nmtui                       : Configurar red
-  htop                        : Monitor sistema
-ATAJOS:
-  Win+x : Menú | Win+t : Terminal | Win+h : Ayuda
-USUARIO: xoniarch / Contraseña: xoniarch
+  installxoni <herramienta>  : Instalar herramienta XONI desde GitHub
+  xoniarch-update            : Actualizar todas las herramientas instaladas
+  xoniarch-menu               : Abrir menú interactivo
+  nmtui                       : Configurar red WiFi/Ethernet
+  htop                        : Monitor del sistema
+  pcmanfm                     : Gestor de archivos
+  alsamixer                   : Ajustar volumen
+
+ATAJOS DE TECLADO:
+  Win + x   : Menú principal
+  Win + t   : Nueva terminal
+  Win + h   : Ayuda
+  Win + i   : Instalar herramienta
+  Win + q   : Cerrar sesión
+
+USUARIO: xoniarch / CONTRASEÑA: xoniarch
+ROOT:    root     / CONTRASEÑA: root
+
+REPOSITORIO: https://github.com/XONIDU/xoniarch32
 HELP
 EOF
 
+# xoniarch-menu: menú interactivo
 cat > /mnt/usr/local/bin/xoniarch-menu << 'EOF'
 #!/bin/bash
 while true; do
     clear
     echo "========================================"
-    echo "      XONIARCH32 - MENÚ"
+    echo "      XONIARCH32 - MENU PRINCIPAL"
     echo "========================================"
     echo "1) Nueva terminal"
     echo "2) Instalar herramienta XONI"
-    echo "3) Configurar red"
-    echo "4) Monitor sistema"
-    echo "5) Ayuda"
-    echo "6) Cerrar sesión"
-    read -p "Opción [1-6]: " opt
+    echo "3) Configurar red (nmtui)"
+    echo "4) Monitor del sistema (htop)"
+    echo "5) Gestor de archivos (pcmanfm)"
+    echo "6) Ayuda"
+    echo "7) Cerrar sesion"
+    echo ""
+    read -p "Opcion [1-7]: " opt
     case $opt in
         1) urxvt ;;
-        2) urxvt -e installxoni ; read -p "Enter..." ;;
+        2) urxvt -e installxoni ; read -p "Presiona Enter..." ;;
         3) urxvt -e nmtui ;;
         4) urxvt -e htop ;;
-        5) xoniarch-help ; read -p "Enter..." ;;
-        6) openbox --exit ;;
-        *) echo "Opción inválida"; sleep 2 ;;
+        5) pcmanfm ;;
+        6) xoniarch-help ; read -p "Presiona Enter..." ;;
+        7) openbox --exit ;;
+        *) echo "Opcion invalida"; sleep 2 ;;
     esac
 done
 EOF
 
-chmod -R +x /mnt/usr/local/bin/
+chmod +x /mnt/usr/local/bin/*
 
 # ============================================
-# 8.5 SDDM AUTO-LOGIN
+# 14. SDDM con auto-login
 # ============================================
 mkdir -p /mnt/etc/sddm.conf.d
 cat > /mnt/etc/sddm.conf.d/autologin.conf << EOF
@@ -356,7 +433,7 @@ Session=openbox.desktop
 EOF
 
 # ============================================
-# 8.6 .bashrc PERSONALIZADO
+# 15. .bashrc personalizado
 # ============================================
 cat > /mnt/etc/skel/.bashrc << 'EOF'
 alias ll='ls -la'
@@ -369,28 +446,57 @@ EOF
 cp /mnt/etc/skel/.bashrc /mnt/home/xoniarch/ 2>/dev/null || true
 
 # ============================================
-# 8.7 MENSAJE DE BIENVENIDA
+# 16. Fondo de pantalla por defecto
+# ============================================
+mkdir -p /mnt/usr/share/backgrounds
+# Crear un fondo simple (gradiente azul) con ImageMagick si está disponible
+if command -v convert >/dev/null 2>&1; then
+    convert -size 1024x768 gradient:blue-navy /mnt/usr/share/backgrounds/default.jpg
+else
+    # Si no hay ImageMagick, crear un archivo vacío (se usará feh sin imagen)
+    touch /mnt/usr/share/backgrounds/default.jpg
+fi
+
+# ============================================
+# 17. Mensaje de bienvenida (MOTD)
 # ============================================
 cat > /mnt/etc/motd << 'EOF'
-╔════════════════════════════════════╗
-║    XONIARCH32 - LISTO              ║
-║    by Darian Alberto Camacho Salas ║
-╚════════════════════════════════════╝
-Usuario: xoniarch / Contraseña: xoniarch
-Comandos: xoniarch-help
-Reinicia: sudo reboot
+========================================
+   XONIARCH32 v4.2.0 - LISTO
+   by Darian Alberto Camacho Salas
+========================================
+
+Instalacion completada con exito.
+Usuario: xoniarch / Contrasena: xoniarch
+Root:    root     / Contrasena: root
+
+El sistema arrancara directamente en modo grafico.
+La terminal principal es fija (no se puede cerrar).
+
+Comandos utiles:
+  xoniarch-help     : Ayuda completa
+  xoniarch-menu     : Menu interactivo
+  installxoni       : Instalar herramientas XONI desde GitHub
+  xoniarch-update   : Actualizar herramientas
+  nmtui             : Configurar red
+
+Repositorio: https://github.com/XONIDU/xoniarch32
 EOF
 
 # ============================================
-# 9. LIMPIEZA Y FINALIZACIÓN
+# 18. Limpieza y finalización
 # ============================================
 rm -f /mnt/root/chroot-config.sh
 umount -R /mnt 2>/dev/null || true
 [ -n "$SWAP_PART" ] && swapoff "/dev/$SWAP_PART" 2>/dev/null || true
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}   INSTALACIÓN COMPLETADA              ${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo "Reinicia: sudo reboot"
-echo "Usuario: xoniarch | Contraseña: xoniarch"
-echo "Root: root | Contraseña: root"
+echo "========================================"
+echo "   INSTALACION COMPLETADA              "
+echo "========================================"
+echo ""
+echo "Reinicia el sistema con: sudo reboot"
+echo ""
+echo "Usuario: xoniarch | Contrasena: xoniarch"
+echo "Root:    root     | Contrasena: root"
+echo ""
+echo "Despues del reinicio, ejecuta 'xoniarch-help' para mas informacion."
