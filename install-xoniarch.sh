@@ -1,11 +1,15 @@
 #!/bin/bash
-# XONIARCH32 v4.2.0 Ultimate – Instalador único y completo
+# XONIARCH32 v5.0 – Instalador universal para sistemas de 32 bits
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniarch32
-# 
-# Este script instala Xoniarch32 en cualquier unidad de almacenamiento
-# (SD, USB, disco interno). Usa PARTUUID para arranque independiente
-# del orden de discos, ideal para sistemas externos.
+#
+# Este script instala un sistema completo listo para usar:
+#   - Kernel Linux estándar
+#   - Xorg + Openbox con terminal fija
+#   - Gestor de inicio lightdm (si disponible) o inicio manual con startx
+#   - Controladores de video genéricos (vesa)
+#   - Herramientas XONI para instalar desde GitHub
+#   - Pregunta nombre de usuario, contraseña y nombre del equipo
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -31,8 +35,7 @@ fi
 # ============================================
 clear
 echo "========================================"
-echo "   XONIARCH32 v4.2.0 ULTIMATE          "
-echo "   Instalador para unidades externas   "
+echo "   XONIARCH32 v5.0 - INSTALADOR        "
 echo "========================================"
 echo ""
 echo "Discos disponibles:"
@@ -97,49 +100,34 @@ mount "/dev/$ROOT_PART" /mnt
 [ -n "$SWAP_PART" ] && swapon "/dev/$SWAP_PART" 2>/dev/null || true
 
 # ============================================
-# 4. Selección del mejor mirror de archlinux32
+# 4. Configurar pacman con mirrors
 # ============================================
-info "Buscando el mirror más rápido de archlinux32..."
+info "Configurando mirrors de archlinux32..."
 
 MIRRORS=(
     "https://mirror.archlinux32.org"
     "https://ftp.halifax.rwth-aachen.de/archlinux32"
     "https://mirror.cyberbits.eu/archlinux32"
     "https://mirror.ubnt.net/archlinux32"
-    "https://mirror.accum.se/mirror/archlinux32"
-    "https://de.mirror.archlinux32.org"
-    "https://gr.mirror.archlinux32.org"
-    "https://mirror.clarkson.edu/archlinux32"
-    "https://mirror.math.princeton.edu/pub/archlinux32"
-    "https://archlinux32.andreasbaumann.cc"
 )
 
 best_mirror=""
-best_time=999999
 for mirror in "${MIRRORS[@]}"; do
     echo -n "Probando $mirror ... "
-    start=$(date +%s%N)
     if curl -s --head --max-time 5 "${mirror}/core/os/i686/core.db" >/dev/null 2>&1; then
-        end=$(date +%s%N)
-        time_ms=$(( (end - start) / 1000000 ))
-        echo "OK (${time_ms}ms)"
-        if [ $time_ms -lt $best_time ]; then
-            best_time=$time_ms
-            best_mirror="$mirror"
-        fi
+        echo "OK"
+        best_mirror="$mirror"
+        break
     else
         echo "FALLÓ"
     fi
 done
 
 if [ -z "$best_mirror" ]; then
-    warn "No se encontró ningún mirror funcional. Usando el mirror por defecto."
+    warn "No se encontró mirror funcional. Usando el primero."
     best_mirror="https://mirror.archlinux32.org"
-else
-    info "Mirror más rápido: $best_mirror (${best_time}ms)"
 fi
 
-# Configurar pacman con ese mirror y varios de respaldo
 cat > /etc/pacman.conf << EOF
 [options]
 HoldPkg         = pacman glibc
@@ -156,17 +144,14 @@ Timeout = 30
 [core]
 Server = $best_mirror/\$arch/\$repo
 Server = https://mirror.archlinux32.org/\$arch/\$repo
-Server = https://ftp.halifax.rwth-aachen.de/archlinux32/\$arch/\$repo
 
 [extra]
 Server = $best_mirror/\$arch/\$repo
 Server = https://mirror.archlinux32.org/\$arch/\$repo
-Server = https://ftp.halifax.rwth-aachen.de/archlinux32/\$arch/\$repo
 
 [community]
 Server = $best_mirror/\$arch/\$repo
 Server = https://mirror.archlinux32.org/\$arch/\$repo
-Server = https://ftp.halifax.rwth-aachen.de/archlinux32/\$arch/\$repo
 EOF
 
 # ============================================
@@ -184,7 +169,7 @@ info "Instalando sistema base (puede tardar 10-20 minutos)..."
 max_retries=5
 retry=0
 while [ $retry -lt $max_retries ]; do
-    if pacstrap /mnt base base-devel linux-firmware grub networkmanager nano sudo git; then
+    if pacstrap /mnt base base-devel linux linux-firmware grub networkmanager sudo git nano; then
         break
     else
         retry=$((retry+1))
@@ -193,7 +178,7 @@ while [ $retry -lt $max_retries ]; do
     fi
 done
 if [ $retry -eq $max_retries ]; then
-    error_exit "Falló la instalación base después de varios intentos. Revisa la conexión a internet."
+    error_exit "Falló la instalación base después de varios intentos."
 fi
 
 # ============================================
@@ -203,11 +188,36 @@ info "Generando fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # ============================================
-# 8. Configuración básica dentro del chroot
+# 8. Preguntar datos del usuario
+# ============================================
+clear
+echo "========================================"
+echo "   CONFIGURACIÓN DEL SISTEMA           "
+echo "========================================"
+echo ""
+read -p "Nombre del equipo (hostname) [xoniarch]: " HOSTNAME
+HOSTNAME=${HOSTNAME:-xoniarch}
+read -p "Nombre de usuario [xoniarch]: " USERNAME
+USERNAME=${USERNAME:-xoniarch}
+while true; do
+    read -s -p "Contraseña para $USERNAME: " PASSWORD1
+    echo
+    read -s -p "Repite la contraseña: " PASSWORD2
+    echo
+    if [ "$PASSWORD1" = "$PASSWORD2" ] && [ -n "$PASSWORD1" ]; then
+        PASSWORD="$PASSWORD1"
+        break
+    else
+        echo "Las contraseñas no coinciden o están vacías. Intenta de nuevo."
+    fi
+done
+
+# ============================================
+# 9. Configuración básica dentro del chroot
 # ============================================
 info "Configurando sistema base..."
 
-cat > /mnt/root/chroot-config.sh << 'CONFIG'
+cat > /mnt/root/chroot-config.sh << CONFIG
 #!/bin/bash
 # Zona horaria
 ln -sf /usr/share/zoneinfo/America/Mexico_City /etc/localtime
@@ -220,17 +230,17 @@ echo "LANG=es_MX.UTF-8" > /etc/locale.conf
 echo "KEYMAP=es" > /etc/vconsole.conf
 
 # Hostname
-echo "xoniarch" > /etc/hostname
+echo "$HOSTNAME" > /etc/hostname
 cat > /etc/hosts << HOSTS
 127.0.0.1   localhost
 ::1         localhost
-127.0.1.1   xoniarch.localdomain xoniarch
+127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
 HOSTS
 
 # Usuario y sudo
-useradd -m -G wheel -s /bin/bash xoniarch
-echo "xoniarch:xoniarch" | chpasswd
-echo "root:root" | chpasswd
+useradd -m -G wheel -s /bin/bash $USERNAME
+echo "$USERNAME:$PASSWORD" | chpasswd
+echo "root:$PASSWORD" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 # Habilitar servicios
@@ -241,98 +251,63 @@ chmod +x /mnt/root/chroot-config.sh
 arch-chroot /mnt /root/chroot-config.sh
 
 # ============================================
-# 9. Instalar GRUB (con PARTUUID para arranque externo)
+# 10. Instalar GRUB (usando UUID para mayor compatibilidad)
 # ============================================
-info "Instalando GRUB y configurando con PARTUUID..."
+info "Instalando GRUB..."
 arch-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
-# Obtener PARTUUID de la partición raíz
-root_uuid=$(blkid -s PARTUUID -o value "/dev/$ROOT_PART")
-if [ -n "$root_uuid" ]; then
-    info "PARTUUID de la raíz: $root_uuid"
-    # Crear grub.cfg manual con PARTUUID
-    cat > /mnt/boot/grub/grub.cfg << GRUB
-set timeout=5
-set default=0
-
-menuentry "Xoniarch32 (desde unidad externa)" {
-    linux /boot/vmlinuz-linux root=PARTUUID=$root_uuid rw quiet
-    initrd /boot/initramfs-linux.img
-}
-GRUB
-    info "grub.cfg creado con PARTUUID."
-else
-    warn "No se pudo obtener PARTUUID. Usando método tradicional."
-    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+# Verificar que el kernel esté presente
+if [ ! -f /mnt/boot/vmlinuz-linux ]; then
+    warn "Kernel no encontrado. Intentando reinstalar linux..."
+    arch-chroot /mnt pacman -S --noconfirm linux
 fi
 
 # ============================================
-# 10. Instalar paquetes adicionales con verificación de arquitectura
+# 11. Instalar paquetes esenciales para Xorg (con verificación)
 # ============================================
-info "Instalando paquetes adicionales (esto puede tardar)..."
+info "Instalando paquetes esenciales (Xorg, Openbox, etc.)..."
 
-# Lista de paquetes deseados (solo nombres)
+# Lista de paquetes base
 PACKAGES=(
     xorg-server
     xorg-xinit
     xorg-xrandr
-    xorg-xinput
-    xorg-xauth
     xterm
     openbox
-    obconf
     tint2
     feh
     picom
-    nitrogen
     rxvt-unicode
-    pcmanfm
-    ranger
-    geany
-    mousepad
-    mpv
-    ffmpeg
     alsa-utils
     pulseaudio
-    pavucontrol
-    xf86-video-intel
     xf86-video-vesa
     mesa
-    sddm
-    tlp
-    acpi
-    acpid
-    lm_sensors
+    lightdm
+    lightdm-gtk-greeter
 )
 
-# Función para verificar si un paquete existe y es de arquitectura i686
-check_package() {
-    pkg=$1
-    # Buscar información del paquete en el mirror
-    if pacman -Sp --print-format "%n %a" "$pkg" 2>/dev/null | grep -q "i686"; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Instalar paquetes con verificación previa
+# Instalar paquete si está disponible
 for pkg in "${PACKAGES[@]}"; do
     echo "Verificando $pkg..."
-    if check_package "$pkg"; then
-        arch-chroot /mnt pacman -S --noconfirm "$pkg" 2>/dev/null && echo "[OK] $pkg instalado" || warn "Falló instalación de $pkg"
+    if pacman -Sp "$pkg" &>/dev/null; then
+        arch-chroot /mnt pacman -S --noconfirm "$pkg" && echo "[OK] $pkg instalado" || warn "Falló instalación de $pkg"
     else
-        warn "$pkg no está disponible para i686 o no existe. Omitiendo."
+        warn "$pkg no está disponible para i686. Omitiendo."
     fi
 done
 
-# Habilitar servicios adicionales (si existen)
-arch-chroot /mnt systemctl enable sddm 2>/dev/null || warn "sddm no disponible"
-arch-chroot /mnt systemctl enable tlp 2>/dev/null || true
-arch-chroot /mnt systemctl enable acpid 2>/dev/null || true
+# Habilitar lightdm si se instaló
+if [ -f /mnt/usr/lib/systemd/system/lightdm.service ]; then
+    arch-chroot /mnt systemctl enable lightdm
+    DM_INSTALLED=1
+else
+    warn "LightDM no instalado. El sistema arrancará en consola. Usa 'startx' para iniciar gráficos."
+    DM_INSTALLED=0
+fi
 
 # ============================================
-# 11. Configuración de Openbox (terminal fija)
+# 12. Configuración de Openbox (terminal fija)
 # ============================================
 info "Configurando Openbox con terminal fija..."
 mkdir -p /mnt/etc/skel/.config/openbox
@@ -387,26 +362,11 @@ exec openbox-session
 EOF
 
 # ============================================
-# 12. Configuración de tint2
-# ============================================
-mkdir -p /mnt/etc/skel/.config/tint2
-cat > /mnt/etc/skel/.config/tint2/tint2rc << 'EOF'
-panel_items = LTSC
-panel_size = 100% 30
-panel_margin = 0 0
-panel_padding = 2 2
-font = Sans 9
-background_color = #000000 80
-taskbar_mode = multi_desktop
-clock_format = %H:%M
-EOF
-
-# ============================================
-# 13. Scripts personalizados de Xoniarch (sin herramientas preinstaladas)
+# 13. Scripts personalizados de Xoniarch
 # ============================================
 info "Creando scripts de Xoniarch..."
+mkdir -p /mnt/usr/local/bin
 
-# installxoni: instala herramientas desde GitHub
 cat > /mnt/usr/local/bin/installxoni << 'EOF'
 #!/bin/bash
 REPO_BASE="https://github.com/XONIDU"
@@ -431,7 +391,6 @@ done
 echo "[OK] $TOOL instalado"
 EOF
 
-# xoniarch-update: actualiza todas las herramientas instaladas
 cat > /mnt/usr/local/bin/xoniarch-update << 'EOF'
 #!/bin/bash
 cd /opt/xoniarch
@@ -441,12 +400,11 @@ done
 echo "[OK] Actualización completada"
 EOF
 
-# xoniarch-help: muestra ayuda
 cat > /mnt/usr/local/bin/xoniarch-help << 'EOF'
 #!/bin/bash
 cat << 'HELP'
 ========================================
-   XONIARCH32 v4.2.0 - AYUDA
+   XONIARCH32 v5.0 - AYUDA
 ========================================
 COMANDOS:
   installxoni <herramienta>  : Instalar herramienta XONI desde GitHub
@@ -464,14 +422,11 @@ ATAJOS DE TECLADO:
   Win + i   : Instalar herramienta
   Win + q   : Cerrar sesión
 
-USUARIO: xoniarch / CONTRASEÑA: xoniarch
-ROOT:    root     / CONTRASEÑA: root
-
+USUARIO: $USERNAME (el que elegiste)
 REPOSITORIO: https://github.com/XONIDU/xoniarch32
 HELP
 EOF
 
-# xoniarch-menu: menú interactivo
 cat > /mnt/usr/local/bin/xoniarch-menu << 'EOF'
 #!/bin/bash
 while true; do
@@ -485,9 +440,9 @@ while true; do
     echo "4) Monitor del sistema (htop)"
     echo "5) Gestor de archivos (pcmanfm)"
     echo "6) Ayuda"
-    echo "7) Cerrar sesion"
+    echo "7) Cerrar sesión"
     echo ""
-    read -p "Opcion [1-7]: " opt
+    read -p "Opción [1-7]: " opt
     case $opt in
         1) urxvt ;;
         2) urxvt -e installxoni ; read -p "Presiona Enter..." ;;
@@ -496,7 +451,7 @@ while true; do
         5) pcmanfm ;;
         6) xoniarch-help ; read -p "Presiona Enter..." ;;
         7) openbox --exit ;;
-        *) echo "Opcion invalida"; sleep 2 ;;
+        *) echo "Opción inválida"; sleep 2 ;;
     esac
 done
 EOF
@@ -504,20 +459,7 @@ EOF
 chmod +x /mnt/usr/local/bin/*
 
 # ============================================
-# 14. SDDM con auto-login (si está instalado)
-# ============================================
-if [ -d /mnt/etc/sddm.conf.d ]; then
-    cat > /mnt/etc/sddm.conf.d/autologin.conf << EOF
-[Autologin]
-User=xoniarch
-Session=openbox.desktop
-EOF
-else
-    warn "SDDM no instalado, el arranque será en modo terminal. Usa 'startx' para iniciar el entorno gráfico."
-fi
-
-# ============================================
-# 15. .bashrc personalizado
+# 14. .bashrc personalizado
 # ============================================
 cat > /mnt/etc/skel/.bashrc << 'EOF'
 alias ll='ls -la'
@@ -525,39 +467,35 @@ alias la='ls -A'
 alias update='xoniarch-update'
 alias menu='xoniarch-menu'
 alias help='xoniarch-help'
-PS1='\[\e[1;32m\][\u@Xoniarch32 \W]\$ \[\e[0m\]'
+PS1='\[\e[1;32m\][\u@\h \W]\$ \[\e[0m\]'
 EOF
-cp /mnt/etc/skel/.bashrc /mnt/home/xoniarch/ 2>/dev/null || true
+cp /mnt/etc/skel/.bashrc "/mnt/home/$USERNAME/" 2>/dev/null || true
 
 # ============================================
-# 16. Fondo de pantalla por defecto
+# 15. Fondo de pantalla por defecto
 # ============================================
 mkdir -p /mnt/usr/share/backgrounds
-if command -v convert >/dev/null 2>&1; then
-    convert -size 1024x768 gradient:blue-navy /mnt/usr/share/backgrounds/default.jpg
-else
-    touch /mnt/usr/share/backgrounds/default.jpg
-fi
+touch /mnt/usr/share/backgrounds/default.jpg
 
 # ============================================
-# 17. Mensaje de bienvenida (MOTD)
+# 16. Mensaje de bienvenida (MOTD)
 # ============================================
 cat > /mnt/etc/motd << 'EOF'
 ========================================
-   XONIARCH32 v4.2.0 ULTIMATE - LISTO
+   XONIARCH32 v5.0 - LISTO
    by Darian Alberto Camacho Salas
 ========================================
 
-Instalacion completada con exito.
-Usuario: xoniarch / Contrasena: xoniarch
-Root:    root     / Contrasena: root
+Instalación completada con éxito.
+Usuario: (el que elegiste)
+Contraseña: la que configuraste
 
-El sistema arrancara directamente en modo grafico (si SDDM esta instalado).
+El sistema arrancará en modo gráfico (si LightDM está instalado).
 La terminal principal es fija (no se puede cerrar).
 
-Comandos utiles:
+Comandos útiles:
   xoniarch-help     : Ayuda completa
-  xoniarch-menu     : Menu interactivo
+  xoniarch-menu     : Menú interactivo
   installxoni       : Instalar herramientas XONI desde GitHub
   xoniarch-update   : Actualizar herramientas
   nmtui             : Configurar red
@@ -566,27 +504,36 @@ Repositorio: https://github.com/XONIDU/xoniarch32
 EOF
 
 # ============================================
-# 18. Verificar GRUB nuevamente
+# 17. Verificar GRUB y kernel
 # ============================================
 if [ ! -f /mnt/boot/grub/grub.cfg ]; then
-    warn "grub.cfg no se generó. Intentando una última vez..."
-    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+    warn "grub.cfg no generado. Creando uno manual..."
+    root_uuid=$(blkid -s UUID -o value "/dev/$ROOT_PART")
+    cat > /mnt/boot/grub/grub.cfg << GRUB
+set timeout=5
+set default=0
+
+menuentry "Xoniarch32" {
+    linux /boot/vmlinuz-linux root=UUID=$root_uuid rw quiet
+    initrd /boot/initramfs-linux.img
+}
+GRUB
 fi
 
 # ============================================
-# 19. Limpieza y finalización
+# 18. Limpieza y finalización
 # ============================================
 rm -f /mnt/root/chroot-config.sh
 umount -R /mnt 2>/dev/null || true
 [ -n "$SWAP_PART" ] && swapoff "/dev/$SWAP_PART" 2>/dev/null || true
 
 echo "========================================"
-echo "   INSTALACION COMPLETADA              "
+echo "   INSTALACIÓN COMPLETADA              "
 echo "========================================"
 echo ""
 echo "Reinicia el sistema con: sudo reboot"
 echo ""
-echo "Usuario: xoniarch | Contrasena: xoniarch"
-echo "Root:    root     | Contrasena: root"
+echo "Usuario: $USERNAME | Contraseña: la que elegiste"
+echo "Root:    root     | Contraseña: la misma"
 echo ""
-echo "Despues del reinicio, ejecuta 'xoniarch-help' para mas informacion."
+echo "Después del reinicio, ejecuta 'xoniarch-help' para más información."
