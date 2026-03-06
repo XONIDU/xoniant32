@@ -3,6 +3,7 @@
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniarch32
 # Este script contiene todo lo necesario para instalar Xoniarch32 desde un live USB.
+# Versión mejorada: corrige errores de arquitectura, reintenta descargas y es tolerante a fallos.
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -174,12 +175,23 @@ pacman-key --populate archlinux32 2>/dev/null || true
 pacman -Sy --noconfirm archlinux32-keyring 2>/dev/null || true
 
 # ============================================
-# 6. Instalar sistema base
+# 6. Instalar sistema base (con reintentos)
 # ============================================
 info "Instalando sistema base (puede tardar 10-20 minutos)..."
-pacstrap /mnt base base-devel linux-firmware grub networkmanager nano sudo git || {
-    error_exit "Falló la instalación base. Revisa la conexión a internet."
-}
+max_retries=5
+retry=0
+while [ $retry -lt $max_retries ]; do
+    if pacstrap /mnt base base-devel linux-firmware grub networkmanager nano sudo git; then
+        break
+    else
+        retry=$((retry+1))
+        warn "Falló la instalación base. Reintento $retry de $max_retries en 10 segundos..."
+        sleep 10
+    fi
+done
+if [ $retry -eq $max_retries ]; then
+    error_exit "Falló la instalación base después de varios intentos. Revisa la conexión a internet."
+fi
 
 # ============================================
 # 7. Generar fstab
@@ -233,22 +245,54 @@ arch-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 # ============================================
-# 10. Instalar paquetes adicionales (Xorg, Openbox, herramientas)
+# 10. Instalar paquetes adicionales (lista corregida para i686)
 # ============================================
-info "Instalando paquetes adicionales..."
-arch-chroot /mnt pacman -S --noconfirm \
-    xorg-server xorg-xinit xorg-xrandr xorg-xinput xorg-xauth \
-    xterm openbox obconf tint2 feh picom nitrogen \
-    rxvt-unicode pcmanfm ranger geany mousepad \
-    firefox mpv vlc ffmpeg yt-dlp \
-    alsa-utils pulseaudio pavucontrol \
-    xf86-video-intel xf86-video-vesa mesa \
-    sddm tlp acpi acpid lm_sensors
+info "Instalando paquetes adicionales (esto puede tardar)..."
+
+# Lista de paquetes reales para i686 (sin versiones)
+PACKAGES=(
+    xorg-server
+    xorg-xinit
+    xorg-xrandr
+    xorg-xinput
+    xorg-xauth
+    xterm
+    openbox
+    obconf
+    tint2
+    feh
+    picom
+    nitrogen
+    rxvt-unicode
+    pcmanfm
+    ranger
+    geany
+    mousepad
+    mpv
+    ffmpeg
+    alsa-utils
+    pulseaudio
+    pavucontrol
+    xf86-video-intel
+    xf86-video-vesa
+    mesa
+    sddm
+    tlp
+    acpi
+    acpid
+    lm_sensors
+)
+
+# Instalar paquetes uno por uno para evitar que un fallo detenga todo
+for pkg in "${PACKAGES[@]}"; do
+    echo "Instalando $pkg..."
+    arch-chroot /mnt pacman -S --noconfirm "$pkg" || warn "No se pudo instalar $pkg (puede no estar disponible). Continuando..."
+done
 
 # Habilitar servicios adicionales
-arch-chroot /mnt systemctl enable sddm
-arch-chroot /mnt systemctl enable tlp
-arch-chroot /mnt systemctl enable acpid
+arch-chroot /mnt systemctl enable sddm || warn "No se pudo habilitar sddm"
+arch-chroot /mnt systemctl enable tlp || true
+arch-chroot /mnt systemctl enable acpid || true
 
 # ============================================
 # 11. Configuración de Openbox (terminal fija)
@@ -449,11 +493,9 @@ cp /mnt/etc/skel/.bashrc /mnt/home/xoniarch/ 2>/dev/null || true
 # 16. Fondo de pantalla por defecto
 # ============================================
 mkdir -p /mnt/usr/share/backgrounds
-# Crear un fondo simple (gradiente azul) con ImageMagick si está disponible
 if command -v convert >/dev/null 2>&1; then
     convert -size 1024x768 gradient:blue-navy /mnt/usr/share/backgrounds/default.jpg
 else
-    # Si no hay ImageMagick, crear un archivo vacío (se usará feh sin imagen)
     touch /mnt/usr/share/backgrounds/default.jpg
 fi
 
