@@ -1,9 +1,9 @@
 #!/bin/bash
-# XONIARCH32 - INSTALADOR ÚNICO Y COMPLETO v4.2.0
+# XONIARCH32 - INSTALADOR ÚNICO Y COMPLETO v5.0
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniarch32
-# Este script contiene todo lo necesario para instalar Xoniarch32 desde un live USB.
-# Versión mejorada: corrige errores de arquitectura, reintenta descargas y es tolerante a fallos.
+# Este script instala todo lo necesario para Xoniarch32 desde un live USB.
+# Las herramientas XONI se instalan después con 'installxoni'.
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -29,7 +29,7 @@ fi
 # ============================================
 clear
 echo "========================================"
-echo "   XONIARCH32 v4.2.0 - INSTALADOR     "
+echo "   XONIARCH32 v5.0 - INSTALADOR        "
 echo "========================================"
 echo ""
 echo "Discos disponibles:"
@@ -238,18 +238,24 @@ chmod +x /mnt/root/chroot-config.sh
 arch-chroot /mnt /root/chroot-config.sh
 
 # ============================================
-# 9. Instalar GRUB
+# 9. Instalar GRUB y verificar
 # ============================================
 info "Instalando GRUB..."
 arch-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
+# Verificar que se creó grub.cfg
+if [ ! -f /mnt/boot/grub/grub.cfg ]; then
+    warn "No se generó grub.cfg. Intentando regenerar..."
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+fi
+
 # ============================================
-# 10. Instalar paquetes adicionales (lista corregida para i686)
+# 10. Instalar paquetes adicionales (lista verificada para i686)
 # ============================================
 info "Instalando paquetes adicionales (esto puede tardar)..."
 
-# Lista de paquetes reales para i686 (sin versiones)
+# Lista de paquetes reales para i686 (sin versiones, solo nombres)
 PACKAGES=(
     xorg-server
     xorg-xinit
@@ -286,13 +292,13 @@ PACKAGES=(
 # Instalar paquetes uno por uno para evitar que un fallo detenga todo
 for pkg in "${PACKAGES[@]}"; do
     echo "Instalando $pkg..."
-    arch-chroot /mnt pacman -S --noconfirm "$pkg" || warn "No se pudo instalar $pkg (puede no estar disponible). Continuando..."
+    arch-chroot /mnt pacman -S --noconfirm "$pkg" 2>/dev/null || warn "No se pudo instalar $pkg (puede no estar disponible). Continuando..."
 done
 
-# Habilitar servicios adicionales
-arch-chroot /mnt systemctl enable sddm || warn "No se pudo habilitar sddm"
-arch-chroot /mnt systemctl enable tlp || true
-arch-chroot /mnt systemctl enable acpid || true
+# Habilitar servicios adicionales (si existen)
+arch-chroot /mnt systemctl enable sddm 2>/dev/null || warn "No se pudo habilitar sddm (puede no estar instalado)"
+arch-chroot /mnt systemctl enable tlp 2>/dev/null || true
+arch-chroot /mnt systemctl enable acpid 2>/dev/null || true
 
 # ============================================
 # 11. Configuración de Openbox (terminal fija)
@@ -365,7 +371,7 @@ clock_format = %H:%M
 EOF
 
 # ============================================
-# 13. Scripts personalizados de Xoniarch
+# 13. Scripts personalizados de Xoniarch (sin herramientas preinstaladas)
 # ============================================
 info "Creando scripts de Xoniarch..."
 
@@ -409,7 +415,7 @@ cat > /mnt/usr/local/bin/xoniarch-help << 'EOF'
 #!/bin/bash
 cat << 'HELP'
 ========================================
-   XONIARCH32 v4.2.0 - AYUDA
+   XONIARCH32 v5.0 - AYUDA
 ========================================
 COMANDOS:
   installxoni <herramienta>  : Instalar herramienta XONI desde GitHub
@@ -504,7 +510,7 @@ fi
 # ============================================
 cat > /mnt/etc/motd << 'EOF'
 ========================================
-   XONIARCH32 v4.2.0 - LISTO
+   XONIARCH32 v5.0 - LISTO
    by Darian Alberto Camacho Salas
 ========================================
 
@@ -526,7 +532,15 @@ Repositorio: https://github.com/XONIDU/xoniarch32
 EOF
 
 # ============================================
-# 18. Limpieza y finalización
+# 18. Verificar GRUB nuevamente antes de desmontar
+# ============================================
+if [ ! -f /mnt/boot/grub/grub.cfg ]; then
+    warn "grub.cfg no se generó. Intentando una última vez..."
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+fi
+
+# ============================================
+# 19. Limpieza y finalización
 # ============================================
 rm -f /mnt/root/chroot-config.sh
 umount -R /mnt 2>/dev/null || true
