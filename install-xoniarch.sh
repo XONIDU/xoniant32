@@ -1,14 +1,17 @@
 #!/bin/bash
-# XONIARCH32 v5.1 - INSTALADOR ULTRA ROBUSTO
+# XONIARCH32 v6.0 ULTIMATE - Instalador definitivo
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniarch32
 #
 # Características:
-#   - Prueba múltiples mirrors y elige el más rápido
-#   - Reintentos automáticos en descargas fallidas
-#   - Instalación base con reintentos y cambio de mirror
-#   - Gráfico siempre activo con múltiples gestores
+#   - Más de 30 mirrors de archlinux32 (incluyendo respaldo)
+#   - Reintentos infinitos con cambio de mirror
+#   - Detección de hardware con controladores para todo
+#   - GRUB instalado con UUID para arranque independiente del orden de discos
+#   - Gráfico siempre activo con 4 gestores de display (lightdm, sddm, lxdm, slim)
 #   - Terminal principal fija (no se puede cerrar)
+#   - Scripts XONI integrados
+#   - Pregunta todos los datos necesarios
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -28,8 +31,8 @@ warn()  { echo -e "${YELLOW}[AVISO] $1${NC}"; }
 # ============================================
 clear
 echo "========================================"
-echo "   XONIARCH32 v5.1                      "
-echo "   INSTALADOR ULTRA ROBUSTO             "
+echo "   XONIARCH32 v6.0 ULTIMATE             "
+echo "   Instalador definitivo                "
 echo "========================================"
 echo ""
 
@@ -146,12 +149,13 @@ mount "/dev/$ROOT_PART" /mnt
 [ -n "$SWAP_PART" ] && swapon "/dev/$SWAP_PART" 2>/dev/null || true
 
 # ============================================
-# 6. Configurar mirrors (múltiples opciones)
+# 6. Configurar mirrors (lista masiva con respaldo)
 # ============================================
-info "Probando mirrors disponibles..."
+info "Configurando mirrors (más de 30 opciones)..."
 
-# Lista completa de mirrors de archlinux32
+# Lista completa de mirrors de archlinux32 (incluyendo alternativas)
 declare -a MIRRORS=(
+    # Oficiales principales
     "https://mirror.archlinux32.org"
     "https://ftp.halifax.rwth-aachen.de/archlinux32"
     "https://mirror.cyberbits.eu/archlinux32"
@@ -164,39 +168,34 @@ declare -a MIRRORS=(
     "https://archlinux32.andreasbaumann.cc"
     "https://mirror.yandex.ru/archlinux32"
     "https://mirror.datacenter.by/pub/archlinux32"
+    # Mirrors adicionales (respaldo)
+    "https://mirror.selfnet.de/archlinux32"
+    "https://mirror.ette.biz/archlinux32"
+    "https://mirrors.dotsrc.org/archlinux32"
+    "https://mirror.franscorack.com/arch32"
+    "https://mirror.juniorjpdj.pl/archlinux32"
+    "https://mirror.qctronics.com/archlinux32"
+    "https://archlinux32.mirror.liteserver.nl"
+    "https://mirror.lagoon.nc/archlinux32"
+    "https://mirror.terrahost.no/archlinux32"
+    "https://mirror.wtnet.de/archlinux32"
+    "https://mirror.bit.edu.cn/archlinux32"
+    "https://mirrors.tuna.tsinghua.edu.cn/archlinux32"
+    "https://mirrors.ustc.edu.cn/archlinux32"
+    "https://mirror.sjtu.edu.cn/archlinux32"
+    "https://mirrors.aliyun.com/archlinux32"
+    "https://mirrors.163.com/archlinux32"
+    "https://mirror.huaweicloud.com/archlinux32"
+    "https://mirrors.tencent.com/archlinux32"
+    "https://mirror.rackspace.com/archlinux32"
+    "https://mirror.us.leaseweb.net/archlinux32"
+    "https://mirror.sfo12.us.leaseweb.net/archlinux32"
 )
 
-# Probar velocidad de cada mirror y ordenar por tiempo de respuesta
-mirror_speeds=()
+# Construir lista de servers para pacman.conf
+server_list=""
 for mirror in "${MIRRORS[@]}"; do
-    echo -n "Probando $mirror ... "
-    # Medir tiempo de conexión
-    if time=$(curl -s -w "%{time_total}" -o /dev/null --max-time 5 "${mirror}/core/os/i686/core.db" 2>/dev/null); then
-        echo "${GREEN}OK (${time}s)${NC}"
-        mirror_speeds+=("$time $mirror")
-    else
-        echo "${RED}FALLÓ${NC}"
-    fi
-done
-
-# Ordenar por tiempo (menor primero)
-if [ ${#mirror_speeds[@]} -eq 0 ]; then
-    warn "No se encontró ningún mirror funcional. Usando los predeterminados."
-    best_mirror="https://mirror.archlinux32.org"
-else
-    sorted=$(printf '%s\n' "${mirror_speeds[@]}" | sort -n)
-    best_mirror=$(echo "$sorted" | head -1 | cut -d' ' -f2-)
-    info "Mirror más rápido: $best_mirror"
-fi
-
-# Construir lista de servers para pacman.conf (el mejor primero, luego los demás)
-server_list_core=""
-server_list_extra=""
-server_list_community=""
-for mirror in "${MIRRORS[@]}"; do
-    server_list_core+="Server = $mirror/\$arch/\$repo\n"
-    server_list_extra+="Server = $mirror/\$arch/\$repo\n"
-    server_list_community+="Server = $mirror/\$arch/\$repo\n"
+    server_list+="Server = $mirror/\$arch/\$repo\n"
 done
 
 cat > /etc/pacman.conf << EOF
@@ -210,14 +209,13 @@ ParallelDownloads = 5
 Color
 CheckSpace
 DisableDownloadTimeout
-Timeout = 60
 
 [core]
-$server_list_core
+$server_list
 [extra]
-$server_list_extra
+$server_list
 [community]
-$server_list_community
+$server_list
 EOF
 
 # ============================================
@@ -229,28 +227,22 @@ pacman-key --populate archlinux32 2>/dev/null || true
 pacman -Sy --noconfirm archlinux32-keyring 2>/dev/null || true
 
 # ============================================
-# 8. Instalar sistema base con reintentos
+# 8. Instalar sistema base con reintentos infinitos
 # ============================================
-info "Instalando sistema base (puede tardar)..."
-max_retries=5
-retry=0
+info "Instalando sistema base (puede tardar mucho si hay fallos de red)..."
 base_ok=false
-while [ $retry -lt $max_retries ] && [ "$base_ok" = false ]; do
+while [ "$base_ok" = false ]; do
     if pacstrap /mnt base base-devel linux linux-firmware grub networkmanager sudo git nano; then
         base_ok=true
         info "Sistema base instalado correctamente."
     else
-        retry=$((retry+1))
-        warn "Falló la instalación base. Reintento $retry de $max_retries en 15 segundos..."
+        warn "Falló la instalación base. Se reintentará en 15 segundos con la misma configuración."
+        warn "Si el problema persiste, verifica tu conexión a internet."
         sleep 15
         # Forzar actualización de mirrors
         pacman -Syy
     fi
 done
-
-if [ "$base_ok" = false ]; then
-    error_exit "No se pudo instalar el sistema base después de $max_retries intentos. Revisa tu conexión a internet."
-fi
 
 # ============================================
 # 9. Generar fstab
@@ -296,11 +288,30 @@ chmod +x /mnt/root/chroot-config.sh
 arch-chroot /mnt /root/chroot-config.sh
 
 # ============================================
-# 11. Instalar GRUB (con verificación)
+# 11. Instalar GRUB (usando UUID para arranque independiente)
 # ============================================
 info "Instalando GRUB..."
 arch-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
-arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+
+# Obtener UUID de la partición raíz
+ROOT_UUID=$(blkid -s UUID -o value "/dev/$ROOT_PART")
+if [ -n "$ROOT_UUID" ]; then
+    info "UUID de la raíz: $ROOT_UUID"
+    # Configurar grub.cfg manualmente con UUID
+    cat > /mnt/boot/grub/grub.cfg << GRUB
+set timeout=5
+set default=0
+
+menuentry "Xoniarch32" {
+    linux /boot/vmlinuz-linux root=UUID=$ROOT_UUID rw quiet
+    initrd /boot/initramfs-linux.img
+}
+GRUB
+    info "grub.cfg creado con UUID."
+else
+    warn "No se pudo obtener UUID. Usando método tradicional."
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+fi
 
 # Verificar que el kernel esté presente
 if [ ! -f /mnt/boot/vmlinuz-linux ]; then
@@ -532,7 +543,7 @@ cat > /mnt/usr/local/bin/xoniarch-help << 'EOF'
 #!/bin/bash
 cat << 'HELP'
 ========================================
-   XONIARCH32 v5.1 - AYUDA
+   XONIARCH32 v6.0 - AYUDA
 ========================================
 COMANDOS:
   installxoni <herramienta>  : Instalar desde GitHub
@@ -548,7 +559,7 @@ ATAJOS:
   Win + i   : Instalar herramienta
   Win + q   : Cerrar sesión
 
-El sistema ARRANCA DIRECTAMENTE EN MODO GRÁFICO
+El sistema ARRANCA DIRECTAMENTE EN MODO GRAFICO
 La terminal principal es FIJA (no se puede cerrar)
 
 REPOSITORIO: https://github.com/XONIDU/xoniarch32
@@ -602,13 +613,13 @@ cp /mnt/etc/skel/.bashrc "/mnt/home/$USERNAME/"
 # ============================================
 cat > /mnt/etc/motd << 'EOF'
 ========================================
-   XONIARCH32 v5.1 - LISTO
+   XONIARCH32 v6.0 - LISTO
    by Darian Alberto Camacho Salas
 ========================================
 
-✅ Instalación completada
-🎯 El sistema ARRANCA DIRECTAMENTE EN MODO GRÁFICO
-🖥️ La terminal principal es FIJA (no se puede cerrar)
+Instalación completada.
+El sistema ARRANCA DIRECTAMENTE EN MODO GRAFICO.
+La terminal principal es FIJA (no se puede cerrar).
 
 Comandos: xoniarch-help
 Repositorio: https://github.com/XONIDU/xoniarch32
@@ -639,10 +650,10 @@ umount -R /mnt 2>/dev/null || true
 [ -n "$SWAP_PART" ] && swapoff "/dev/$SWAP_PART" 2>/dev/null || true
 
 echo "========================================"
-echo "   INSTALACIÓN COMPLETADA               "
+echo "   INSTALACION COMPLETADA               "
 echo "========================================"
 echo ""
-echo "El sistema ARRANCARÁ DIRECTAMENTE EN MODO GRÁFICO"
+echo "El sistema ARRANCARA DIRECTAMENTE EN MODO GRAFICO"
 echo "Terminal principal FIJA (no se puede cerrar)"
 echo ""
 echo "Reinicia con: sudo reboot"
@@ -650,6 +661,6 @@ echo ""
 echo "Usuario: $USERNAME | Contraseña: (la que elegiste)"
 echo "Root:    root     | Contraseña: la misma"
 echo ""
-echo "Múltiples gestores instalados: lightdm, sddm, lxdm, slim"
-echo "Si uno falla, el siguiente intentará iniciar"
+echo "Multiples gestores instalados: lightdm, sddm, lxdm, slim"
+echo "Si uno falla, el siguiente intentara iniciar"
 echo "¡Disfruta Xoniarch32!"
