@@ -1,13 +1,12 @@
 #!/bin/bash
-# XONIARCH32 v6.1 ULTIMATE - Instalador definitivo
+# XONIARCH32 v6.2 ULTIMATE - Instalador definitivo
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniarch32
 #
 # Características:
-#   - 50+ mirrors de archlinux32 (incluyendo EE.UU., Europa, Asia)
-#   - Prueba automática de mirrors y selección del más rápido
-#   - Reintentos infinitos con cambio de mirror si es necesario
-#   - Configuración regional preguntada al usuario (sin valores fijos)
+#   - Lista de mirrors exclusivamente i686 (probados y funcionales)
+#   - Reintentos infinitos con cambio automático de mirror si falla
+#   - Configuración regional preguntada al usuario
 #   - GRUB con UUID para arranque independiente
 #   - Gráfico siempre activo con múltiples gestores de display
 #   - Terminal principal fija (no se puede cerrar)
@@ -31,7 +30,7 @@ warn()  { echo -e "${YELLOW}[AVISO] $1${NC}"; }
 # ============================================
 clear
 echo "========================================"
-echo "   XONIARCH32 v6.1 ULTIMATE             "
+echo "   XONIARCH32 v6.2 ULTIMATE             "
 echo "   Instalador definitivo                "
 echo "========================================"
 echo ""
@@ -149,123 +148,38 @@ mount "/dev/$ROOT_PART" /mnt
 [ -n "$SWAP_PART" ] && swapon "/dev/$SWAP_PART" 2>/dev/null || true
 
 # ============================================
-# 6. Lista masiva de mirrors de archlinux32
+# 6. Lista de mirrors i686 (probados y funcionales)
 # ============================================
-info "Preparando lista de mirrors (más de 50 opciones)..."
+info "Preparando lista de mirrors i686..."
 
-declare -a MIRRORS=(
-    # Estados Unidos
-    "https://mirror.clarkson.edu/archlinux32"
-    "https://mirror.math.princeton.edu/pub/archlinux32"
-    "https://mirror.rackspace.com/archlinux32"
-    "https://mirror.us.leaseweb.net/archlinux32"
-    "https://mirror.sfo12.us.leaseweb.net/archlinux32"
-    "https://mirror.wdc1.us.leaseweb.net/archlinux32"
-    "https://iad.mirrors.misaka.one/archlinux32"
-    "https://mirror.umd.edu/archlinux32"
-    "https://plug-mirror.rcac.purdue.edu/archlinux32"
-    "https://mirrors.ocf.berkeley.edu/archlinux32"
-    "https://mirrors.mit.edu/archlinux32"
-    "https://mirror.arizona.edu/archlinux32"
-    "https://mirrors.kernel.org/archlinux32"
-    "https://mirror.ette.biz/archlinux32"
-    "https://mirrors.rit.edu/archlinux32"
-    "https://mirror.cs.odu.edu/archlinux32"
-    "https://mirrors.bloomu.edu/archlinux32"
-    "https://mirrors.lug.mtu.edu/archlinux32"
-    "https://mirrors.sonic.net/archlinux32"
-    "https://ftp.osuosl.org/pub/archlinux32"
-    "https://mirror.pit.teraswitch.com/archlinux32"
-    "https://mirror.constant.com/archlinux32"
-    "https://mirror.zackmyers.io/archlinux32"
-    "https://arch.mirror.marcusspencer.us/archlinux32"
-    "https://mirror.givebytes.net/archlinux32"
-    "https://mirrors.lahansons.com/archlinux32"
-    "https://mirrors.smeal.xyz/arch-linux32"
-    "https://mirror.hasphetica.win/archlinux32"
-    "https://mirror.adectra.com/archlinux32"
-    "https://repo.customcomputercare.com/archlinux32"
-    "https://mirror.pilotfiber.com/archlinux32"
-    "https://mirrors.logal.dev/archlinux32"
-    "https://mirror.fcix.net/archlinux32"
-    "https://mirror.akane.network/archmirror32"
-    "https://mirror.mra.sh/archlinux32"
-    "https://mirror.colonelhosting.com/archlinux32"
-    # Alemania
+declare -a I686_MIRRORS=(
     "https://mirror.archlinux32.org"
     "https://ftp.halifax.rwth-aachen.de/archlinux32"
-    "https://de.mirror.archlinux32.org"
-    "https://mirror.selfnet.de/archlinux32"
-    "https://mirror.wtnet.de/archlinux32"
-    "https://archlinux32.andreasbaumann.cc"
-    # Francia
     "https://mirror.cyberbits.eu/archlinux32"
-    "https://archlinux32.agoctrl.org"
-    # Países Bajos
     "https://mirror.ubnt.net/archlinux32"
-    "https://archlinux32.mirror.liteserver.nl"
-    # Suecia
     "https://mirror.accum.se/mirror/archlinux32"
-    # Dinamarca
-    "https://mirrors.dotsrc.org/archlinux32"
-    # Grecia
+    "https://de.mirror.archlinux32.org"
     "https://gr.mirror.archlinux32.org"
-    # Polonia
-    "https://mirror.juniorjpdj.pl/archlinux32"
-    # Rusia
+    "https://mirror.clarkson.edu/archlinux32"
+    "https://mirror.math.princeton.edu/pub/archlinux32"
+    "https://archlinux32.andreasbaumann.cc"
     "https://mirror.yandex.ru/archlinux32"
-    # Bielorrusia
     "https://mirror.datacenter.by/pub/archlinux32"
-    # China
+    "https://mirror.selfnet.de/archlinux32"
+    "https://archlinux32.mirror.liteserver.nl"
+    "https://mirrors.dotsrc.org/archlinux32"
+    "https://mirror.juniorjpdj.pl/archlinux32"
+    "https://mirror.terrahost.no/archlinux32"
     "https://mirror.bit.edu.cn/archlinux32"
     "https://mirrors.tuna.tsinghua.edu.cn/archlinux32"
     "https://mirrors.ustc.edu.cn/archlinux32"
-    "https://mirror.sjtu.edu.cn/archlinux32"
-    "https://mirrors.aliyun.com/archlinux32"
-    "https://mirrors.163.com/archlinux32"
-    "https://mirror.huaweicloud.com/archlinux32"
-    "https://mirrors.tencent.com/archlinux32"
-    # Otros
-    "https://mirror.franscorack.com/arch32"
-    "https://mirror.lagoon.nc/archlinux32"
-    "https://mirror.terrahost.no/archlinux32"
 )
 
 # ============================================
-# 7. Probar mirrors y elegir el más rápido
-# ============================================
-info "Probando mirrors para seleccionar el más rápido..."
-
-best_mirror=""
-best_time=999999
-for mirror in "${MIRRORS[@]}"; do
-    echo -n "Probando $mirror ... "
-    # Medir tiempo de conexión
-    start=$(date +%s%N)
-    if curl -s -o /dev/null --max-time 5 "${mirror}/core/os/i686/core.db" 2>/dev/null; then
-        end=$(date +%s%N)
-        time_ms=$(( (end - start) / 1000000 ))
-        echo "${GREEN}OK (${time_ms}ms)${NC}"
-        if [ $time_ms -lt $best_time ]; then
-            best_time=$time_ms
-            best_mirror="$mirror"
-        fi
-    else
-        echo "${RED}FALLÓ${NC}"
-    fi
-done
-
-if [ -z "$best_mirror" ]; then
-    error_exit "No se encontró ningún mirror funcional. Verifica tu conexión a internet."
-fi
-
-info "Mirror más rápido seleccionado: $best_mirror (${best_time}ms)"
-
-# ============================================
-# 8. Configurar pacman.conf con todos los mirrors
+# 7. Configurar pacman.conf con todos los mirrors i686
 # ============================================
 server_list=""
-for mirror in "${MIRRORS[@]}"; do
+for mirror in "${I686_MIRRORS[@]}"; do
     server_list+="Server = $mirror/\$arch/\$repo\n"
 done
 
@@ -290,7 +204,7 @@ $server_list
 EOF
 
 # ============================================
-# 9. Inicializar claves PGP
+# 8. Inicializar claves PGP
 # ============================================
 info "Inicializando claves PGP..."
 pacman-key --init 2>/dev/null || true
@@ -298,7 +212,7 @@ pacman-key --populate archlinux32 2>/dev/null || true
 pacman -Sy --noconfirm archlinux32-keyring 2>/dev/null || true
 
 # ============================================
-# 10. Instalar sistema base con reintentos
+# 9. Instalar sistema base con reintentos infinitos
 # ============================================
 info "Instalando sistema base (puede tardar mucho si hay fallos de red)..."
 
@@ -316,12 +230,12 @@ while [ "$base_ok" = false ]; do
 done
 
 # ============================================
-# 11. Generar fstab
+# 10. Generar fstab
 # ============================================
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # ============================================
-# 12. Configurar sistema base
+# 11. Configurar sistema base
 # ============================================
 info "Configurando sistema..."
 
@@ -359,7 +273,7 @@ chmod +x /mnt/root/chroot-config.sh
 arch-chroot /mnt /root/chroot-config.sh
 
 # ============================================
-# 13. Instalar GRUB con UUID
+# 12. Instalar GRUB con UUID
 # ============================================
 info "Instalando GRUB..."
 arch-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
@@ -390,7 +304,7 @@ if [ ! -f /mnt/boot/vmlinuz-linux ]; then
 fi
 
 # ============================================
-# 14. Detectar hardware
+# 13. Detectar hardware
 # ============================================
 info "Detectando hardware..."
 
@@ -422,7 +336,7 @@ if lspci | grep -i network | grep -i wireless >/dev/null; then
 fi
 
 # ============================================
-# 15. Instalar Xorg, Openbox y herramientas
+# 14. Instalar Xorg y Openbox
 # ============================================
 info "Instalando Xorg y Openbox..."
 
@@ -448,7 +362,7 @@ for pkg in "${PACKAGES[@]}"; do
 done
 
 # ============================================
-# 16. Instalar múltiples gestores de display
+# 15. Instalar múltiples gestores de display
 # ============================================
 info "Instalando gestores de display..."
 
@@ -465,7 +379,6 @@ for dm in "${DM_PACKAGES[@]}"; do
 done
 
 # Configurar auto-login para el que esté instalado
-# LightDM
 if [ -f /mnt/etc/lightdm/lightdm.conf ]; then
     mkdir -p /mnt/etc/lightdm
     cat > /mnt/etc/lightdm/lightdm.conf << LIGHTDM
@@ -475,7 +388,6 @@ autologin-session=openbox
 LIGHTDM
 fi
 
-# SDDM
 if [ -d /mnt/etc/sddm.conf.d ]; then
     mkdir -p /mnt/etc/sddm.conf.d
     cat > /mnt/etc/sddm.conf.d/autologin.conf << SDDM
@@ -485,12 +397,10 @@ Session=openbox.desktop
 SDDM
 fi
 
-# LXDM
 if [ -f /mnt/etc/lxdm/lxdm.conf ]; then
     sed -i "s/^# autologin=.*/autologin=$USERNAME/" /mnt/etc/lxdm/lxdm.conf
 fi
 
-# SLiM
 if [ -f /mnt/etc/slim.conf ]; then
     echo "default_user $USERNAME" >> /mnt/etc/slim.conf
     echo "auto_login yes" >> /mnt/etc/slim.conf
@@ -517,7 +427,7 @@ BASHRC
 fi
 
 # ============================================
-# 17. Configurar Openbox (TERMINAL FIJA)
+# 16. Configurar Openbox (TERMINAL FIJA)
 # ============================================
 info "Configurando Openbox con terminal fija..."
 mkdir -p /mnt/etc/skel/.config/openbox
@@ -574,7 +484,7 @@ EOF
 chmod +x /mnt/etc/skel/.xinitrc
 
 # ============================================
-# 18. Scripts XONI
+# 17. Scripts XONI
 # ============================================
 info "Creando scripts XONI..."
 
@@ -612,7 +522,7 @@ cat > /mnt/usr/local/bin/xoniarch-help << 'EOF'
 #!/bin/bash
 cat << 'HELP'
 ========================================
-   XONIARCH32 v6.1 - AYUDA
+   XONIARCH32 v6.2 - AYUDA
 ========================================
 COMANDOS:
   installxoni <herramienta>  : Instalar desde GitHub
@@ -665,7 +575,7 @@ EOF
 chmod +x /mnt/usr/local/bin/*
 
 # ============================================
-# 19. .bashrc personalizado
+# 18. .bashrc personalizado
 # ============================================
 cat > /mnt/etc/skel/.bashrc << 'EOF'
 alias ll='ls -la'
@@ -678,11 +588,11 @@ EOF
 cp /mnt/etc/skel/.bashrc "/mnt/home/$USERNAME/"
 
 # ============================================
-# 20. Mensaje de bienvenida
+# 19. Mensaje de bienvenida
 # ============================================
 cat > /mnt/etc/motd << 'EOF'
 ========================================
-   XONIARCH32 v6.1 - LISTO
+   XONIARCH32 v6.2 - LISTO
    by Darian Alberto Camacho Salas
 ========================================
 
@@ -695,7 +605,7 @@ Repositorio: https://github.com/XONIDU/xoniarch32
 EOF
 
 # ============================================
-# 21. Script de respaldo para inicio gráfico
+# 20. Script de respaldo para inicio gráfico
 # ============================================
 cat > /mnt/usr/local/bin/ensure-graphical << 'EOF'
 #!/bin/bash
@@ -712,7 +622,7 @@ mkdir -p /mnt/var/spool/cron
 echo "* * * * * /usr/local/bin/ensure-graphical" >> /mnt/var/spool/cron/$USERNAME 2>/dev/null || true
 
 # ============================================
-# 22. Limpieza y finalización
+# 21. Limpieza y finalización
 # ============================================
 rm -f /mnt/root/chroot-config.sh
 umount -R /mnt 2>/dev/null || true
