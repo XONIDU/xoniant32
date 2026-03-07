@@ -1,10 +1,12 @@
 #!/bin/bash
-# xoniant32 – Instalador desde live USB de antiX
+# xoniant32 – Script de purga y conversión desde antiX
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniant32
 #
-# Este script debe ejecutarse desde el entorno live de antiX (32 bits).
-# Realiza la instalación completa en el disco seleccionado y aplica la personalización XONI.
+# Este script convierte una instalación existente de antiX 386
+# en un sistema xoniant32 puro: solo terminal, sin escritorios,
+# con Openbox como única ventana, terminal fija, audio, nmtui,
+# y scripts XONI.
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -18,245 +20,122 @@ error_exit() { echo -e "${RED}[ERROR] $1${NC}" >&2; exit 1; }
 info()  { echo -e "${GREEN}[INFO] $1${NC}"; }
 warn()  { echo -e "${YELLOW}[AVISO] $1${NC}"; }
 
-# ============================================
-# 1. Verificar entorno live de antiX
-# ============================================
+# Verificar que se ejecuta como root
+if [ "$EUID" -ne 0 ]; then 
+    error_exit "Este script debe ejecutarse como root (sudo)."
+fi
+
+# Verificar que es antiX
+if [ ! -f /etc/antix-version ]; then
+    error_exit "Este script debe ejecutarse en antiX Linux."
+fi
+
 clear
 echo "========================================"
-echo "   XONIANT32 - INSTALADOR DESDE LIVE   "
-echo "   Basado en antiX Linux                "
+echo "   XONIANT32 - PURGA Y CONVERSIÓN      "
+echo "   desde antiX 386                      "
+echo "========================================"
+echo "ADVERTENCIA: Este script eliminará:"
+echo "  - Todos los entornos de escritorio (XFCE, Fluxbox, IceWM, JWM)"
+echo "  - Aplicaciones innecesarias (libreoffice, firefox-esr, etc.)"
+echo "  - Juegos, herramientas gráficas, y paquetes de desarrollo"
 echo "========================================"
 echo ""
-
-if [ ! -f /etc/antix-version ]; then
-    error_exit "Este script debe ejecutarse desde el live USB de antiX Linux."
-fi
+read -p "¿Estás seguro de continuar? (escribe YES): " CONFIRM
+[ "$CONFIRM" != "YES" ] && error_exit "Operación cancelada."
 
 # ============================================
-# 2. Preguntar configuración regional
+# 1. PURGA MASIVA DE PAQUETES INNECESARIOS
 # ============================================
-echo "========================================"
-echo "   CONFIGURACIÓN REGIONAL               "
-echo "========================================"
-echo ""
+info "Purgando entornos de escritorio completos..."
+apt purge -y xfce4* lxde* lxqt* mate-* cinnamon* gnome-* kde-* || true
 
-read -p "Región (ej: America) [America]: " ZONE_REGION
-ZONE_REGION=${ZONE_REGION:-America}
+info "Purgando gestores de ventanas adicionales..."
+apt purge -y fluxbox icewm jwm dwm awesome i3* || true
 
-read -p "Ciudad (ej: Mexico_City) [Mexico_City]: " ZONE_CITY
-ZONE_CITY=${ZONE_CITY:-Mexico_City}
-TIMEZONE="$ZONE_REGION/$ZONE_CITY"
+info "Purgando aplicaciones de oficina..."
+apt purge -y libreoffice* abiword gnumeric || true
 
-read -p "Idioma del sistema (ej: es_MX.UTF-8) [es_MX.UTF-8]: " LOCALE
-LOCALE=${LOCALE:-es_MX.UTF-8}
+info "Purgando navegadores pesados..."
+apt purge -y firefox* chromium* seamonkey* || true
 
-read -p "Distribución de teclado (ej: es) [es]: " KEYMAP
-KEYMAP=${KEYMAP:-es}
+info "Purgando reproductores multimedia..."
+apt purge -y vlc smplayer audacious parole || true
 
-echo ""
+info "Purgando juegos y entretenimiento..."
+apt purge -y gnome-games* aisleriot solitaire || true
 
-# ============================================
-# 3. Preguntar credenciales
-# ============================================
-echo "========================================"
-echo "   CONFIGURACIÓN DE USUARIO             "
-echo "========================================"
-echo ""
+info "Purgando herramientas gráficas..."
+apt purge -y gimp inkscape blender shotwell || true
 
-read -p "Nombre del equipo (hostname) [xoniant32]: " HOSTNAME
-HOSTNAME=${HOSTNAME:-xoniant32}
+info "Purgando clientes de correo..."
+apt purge -y thunderbird* claws-mail* sylpheed* || true
 
-read -p "Nombre de usuario [xoniarch]: " USERNAME
-USERNAME=${USERNAME:-xoniarch}
+info "Purgando programas de desarrollo innecesarios..."
+apt purge -y build-essential gcc g++ make cmake || true
 
-while true; do
-    read -s -p "Contraseña para $USERNAME: " PASSWORD1
-    echo
-    read -s -p "Repite la contraseña: " PASSWORD2
-    echo
-    if [ "$PASSWORD1" = "$PASSWORD2" ] && [ -n "$PASSWORD1" ]; then
-        PASSWORD="$PASSWORD1"
-        break
-    else
-        echo "Las contraseñas no coinciden o están vacías. Intenta de nuevo."
-    fi
-done
-echo ""
+info "Purgando documentación y manuales..."
+apt purge -y man-db manpages info || true
 
 # ============================================
-# 4. Seleccionar disco de instalación
+# 2. AUTOLIMPIEZA
 # ============================================
-echo "========================================"
-echo "   SELECCIÓN DE DISCO                   "
-echo "========================================"
-echo ""
+info "Eliminando dependencias no usadas..."
+apt autoremove --purge -y
 
-lsblk -d -o NAME,SIZE,MODEL,TYPE | grep -E "disk|NAME"
-echo ""
-read -p "¿En qué disco instalar? (ej: sda): " DISK
-[ -z "$DISK" ] && error_exit "No se seleccionó ningún disco."
-[ ! -b "/dev/$DISK" ] && error_exit "El disco /dev/$DISK no existe."
-
-echo ""
-echo "¡ATENCION! Se borrarán TODOS los datos en /dev/$DISK"
-lsblk "/dev/$DISK"
-read -p "¿Estás seguro? (escribe YES): " CONFIRM
-[ "$CONFIRM" != "YES" ] && error_exit "Instalación cancelada."
+info "Limpiando caché de paquetes..."
+apt clean
+apt autoclean
 
 # ============================================
-# 5. Particionado automático
+# 3. INSTALAR PAQUETES ESENCIALES XONIANT32
 # ============================================
-echo ""
-echo "========================================"
-echo "   PARTICIONADO                         "
-echo "========================================"
-echo ""
-
-read -p "¿Crear partición swap? (s/n): " SWAP_OPT
-if [[ "$SWAP_OPT" =~ ^[Ss]$ ]]; then
-    read -p "Tamaño de swap en GB (ej: 1): " SWAP_SIZE
-    SWAP_SIZE=${SWAP_SIZE:-1}
-    info "Particionando con swap de ${SWAP_SIZE}G..."
-    parted "/dev/$DISK" mklabel msdos
-    parted "/dev/$DISK" mkpart primary linux-swap 1MiB "${SWAP_SIZE}GiB"
-    parted "/dev/$DISK" mkpart primary ext4 "${SWAP_SIZE}GiB" 100%
-    parted "/dev/$DISK" set 2 boot on
-    ROOT_PART="${DISK}2"
-    SWAP_PART="${DISK}1"
-else
-    info "Particionando sin swap..."
-    parted "/dev/$DISK" mklabel msdos
-    parted "/dev/$DISK" mkpart primary ext4 1MiB 100%
-    parted "/dev/$DISK" set 1 boot on
-    ROOT_PART="${DISK}1"
-    SWAP_PART=""
-fi
-
-info "Formateando particiones..."
-mkfs.ext4 -F "/dev/$ROOT_PART"
-[ -n "$SWAP_PART" ] && mkswap "/dev/$SWAP_PART"
-
-info "Montando sistema en /mnt..."
-mount "/dev/$ROOT_PART" /mnt
-[ -n "$SWAP_PART" ] && swapon "/dev/$SWAP_PART" 2>/dev/null || true
-
-# ============================================
-# 6. Copiar sistema live al destino (excluyendo sistemas de archivos virtuales)
-# ============================================
-info "Copiando sistema live al disco de destino (puede tardar varios minutos)..."
-rsync -aAXv / --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} /mnt/ || error_exit "Falló la copia del sistema."
-
-# ============================================
-# 7. Preparar el sistema para el chroot
-# ============================================
-info "Montando sistemas virtuales para el chroot..."
-mount --bind /dev /mnt/dev
-mount --bind /proc /mnt/proc
-mount --bind /sys /mnt/sys
-
-# ============================================
-# 8. Configurar sistema base dentro del chroot
-# ============================================
-info "Configurando el sistema dentro del chroot..."
-
-cat > /mnt/tmp/chroot-config.sh << CONFIG
-#!/bin/bash
-# Zona horaria
-ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-hwclock --systohc
-
-# Localización
-echo "$LOCALE UTF-8" >> /etc/locale.gen
-locale-gen
-echo "LANG=$LOCALE" > /etc/locale.conf
-update-locale LANG=$LOCALE
-
-# Teclado
-echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
-echo "XKBLAYOUT=$KEYMAP" > /etc/default/keyboard
-dpkg-reconfigure keyboard-configuration -f noninteractive
-
-# Hostname
-echo "$HOSTNAME" > /etc/hostname
-cat > /etc/hosts << HOSTS
-127.0.0.1   localhost
-::1         localhost
-127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
-HOSTS
-
-# Usuario y sudo
-useradd -m -G sudo -s /bin/bash $USERNAME
-echo "$USERNAME:$PASSWORD" | chpasswd
-echo "root:$PASSWORD" | chpasswd
-
-# Habilitar sudo para el grupo sudo
-sed -i 's/^# %sudo ALL=(ALL:ALL) ALL/%sudo ALL=(ALL:ALL) ALL/' /etc/sudoers
+info "Instalando paquetes esenciales..."
 
 # Actualizar repositorios
 apt update
 
-# Instalar paquetes adicionales (Xorg, Openbox, herramientas, gestores de display)
-apt install -y git curl wget htop neofetch build-essential
-apt install -y xorg openbox obconf tint2 feh picom rxvt-unicode pcmanfm
+# Paquetes base
+apt install -y git curl wget htop nano
+
+# Audio
 apt install -y alsa-utils pulseaudio pavucontrol
-apt install -y lightdm lightdm-gtk-greeter sddm lxdm slim
-apt install -y network-manager nmtui
-apt install -y mpv ffmpeg yt-dlp
 
-# Configurar auto-login en lightdm (si está instalado)
-if [ -f /etc/lightdm/lightdm.conf ]; then
-    mkdir -p /etc/lightdm/lightdm.conf.d
-    cat > /etc/lightdm/lightdm.conf.d/autologin.conf << LIGHTDM
-[Seat:*]
-autologin-user=$USERNAME
-autologin-session=openbox
-LIGHTDM
-fi
+# Red
+apt install -y network-manager network-manager-gnome nmtui
 
-# Configurar SDDM (si está instalado)
-if [ -d /etc/sddm.conf.d ]; then
-    mkdir -p /etc/sddm.conf.d
-    cat > /etc/sddm.conf.d/autologin.conf << SDDM
-[Autologin]
-User=$USERNAME
-Session=openbox.desktop
-SDDM
-fi
+# Xorg mínimo
+apt install -y xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-fbdev
 
-# Configurar LXDM (si está instalado)
-if [ -f /etc/lxdm/lxdm.conf ]; then
-    sed -i "s/^# autologin=.*/autologin=$USERNAME/" /etc/lxdm/lxdm.conf
-fi
+# Openbox y terminal fija
+apt install -y openbox obconf tint2 feh picom rxvt-unicode pcmanfm
 
-# Configurar SLiM (si está instalado)
-if [ -f /etc/slim.conf ]; then
-    echo "default_user $USERNAME" >> /etc/slim.conf
-    echo "auto_login yes" >> /etc/slim.conf
-fi
-
-# Habilitar el primer gestor de display encontrado
-DM_SERVICE=""
-for svc in lightdm sddm lxdm slim; do
-    if systemctl list-unit-files | grep -q "$svc.service"; then
-        DM_SERVICE="$svc"
-        systemctl enable "$svc"
-        echo "Gestor de display habilitado: $svc"
-        break
-    fi
-done
-
-if [ -z "$DM_SERVICE" ]; then
-    echo "No se instaló ningún gestor de display. Se usará startx manual."
-fi
-
-# Habilitar NetworkManager
-systemctl enable NetworkManager
+# Scripts XONI (dependencia git)
+apt install -y git
 
 # ============================================
-# Configurar Openbox con terminal fija
+# 4. ELIMINAR GESTORES DE DISPLAY PESADOS
 # ============================================
-mkdir -p /home/$USERNAME/.config/openbox
-cat > /home/$USERNAME/.config/openbox/rc.xml << 'EOF'
+info "Eliminando gestores de display..."
+apt purge -y lightdm sddm lxdm slim gdm3 xdm || true
+
+# ============================================
+# 5. CONFIGURAR OPENBOX (TERMINAL FIJA)
+# ============================================
+info "Configurando Openbox con terminal fija..."
+
+# Crear estructura de directorios para usuario (si existe)
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    USER_HOME="/home/$SUDO_USER"
+else
+    # Si no hay SUDO_USER, preguntar
+    read -p "Nombre de usuario para configurar: " TARGET_USER
+    USER_HOME="/home/$TARGET_USER"
+fi
+
+mkdir -p "$USER_HOME/.config/openbox"
+
+cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
   <applications>
@@ -279,7 +158,7 @@ cat > /home/$USERNAME/.config/openbox/rc.xml << 'EOF'
 </openbox_config>
 EOF
 
-cat > /home/$USERNAME/.config/openbox/menu.xml << 'EOF'
+cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <openbox_menu>
   <menu id="root-menu" label="Xoniant32">
@@ -293,7 +172,7 @@ cat > /home/$USERNAME/.config/openbox/menu.xml << 'EOF'
 </openbox_menu>
 EOF
 
-cat > /home/$USERNAME/.config/openbox/autostart << 'EOF'
+cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
 # TERMINAL PRINCIPAL (NO SE PUEDE CERRAR)
 urxvt -title "principal" &
 feh --bg-scale /usr/share/backgrounds/default.jpg &
@@ -301,19 +180,18 @@ picom -b &
 tint2 &
 EOF
 
-cat > /home/$USERNAME/.xinitrc << 'EOF'
+cat > "$USER_HOME/.xinitrc" << 'EOF'
 #!/bin/sh
 exec openbox-session
 EOF
-chmod +x /home/$USERNAME/.xinitrc
+chmod +x "$USER_HOME/.xinitrc"
 
-chown -R $USERNAME:$USERNAME /home/$USERNAME/.config
-chown $USERNAME:$USERNAME /home/$USERNAME/.xinitrc
+chown -R "$SUDO_USER":"$SUDO_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc" 2>/dev/null || true
 
 # ============================================
-# Crear scripts XONI
+# 6. CREAR SCRIPTS XONI (en /usr/local/bin)
 # ============================================
-mkdir -p /usr/local/bin
+info "Creando scripts XONI..."
 
 cat > /usr/local/bin/installxoni << 'EOF'
 #!/bin/bash
@@ -400,84 +278,73 @@ EOF
 chmod +x /usr/local/bin/*
 
 # ============================================
-# Configurar .bashrc para el usuario
+# 7. CONFIGURAR ARRANQUE SIN GESTOR DE DISPLAY
 # ============================================
-cat >> /home/$USERNAME/.bashrc << 'BASHRC'
+info "Configurando arranque automático a X..."
+
+# Añadir al .bashrc del usuario para iniciar X en tty1
+cat >> "$USER_HOME/.bashrc" << 'BASHRC'
+if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    startx
+fi
+BASHRC
+
+# Configurar getty para auto-login (opcional)
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $SUDO_USER --noclear %I 38400 linux
+EOF
+
+# ============================================
+# 8. CONFIGURAR NETWORKMANAGER PARA runit
+# ============================================
+info "Configurando NetworkManager para antiX (runit)..."
+
+mkdir -p /etc/sv/networkmanager
+cat > /etc/sv/networkmanager/run << 'EOF'
+#!/bin/bash
+exec chpst -u root /usr/sbin/NetworkManager
+EOF
+chmod +x /etc/sv/networkmanager/run
+
+ln -s /etc/sv/networkmanager /etc/service/networkmanager 2>/dev/null || true
+
+# ============================================
+# 9. .bashrc personalizado
+# ============================================
+cat >> "$USER_HOME/.bashrc" << 'BASHRC2'
 alias ll='ls -la'
 alias la='ls -A'
 alias update='xoniarch-update'
 alias menu='xoniarch-menu'
 alias help='xoniarch-help'
-PS1='\[\e[1;32m\][\u@\h \W]\$ \[\e[0m\]'
-BASHRC
+BASHRC2
 
-chown $USERNAME:$USERNAME /home/$USERNAME/.bashrc
-
-# ============================================
-# Generar fstab
-# ============================================
-cat > /etc/fstab << FSTAB
-# /etc/fstab: información del sistema de archivos
-# <file system> <mount point>   <type>  <options>       <dump>  <pass>
-$(blkid -s UUID -o value "/dev/$ROOT_PART") / ext4 defaults 0 1
-EOF
-
-[ -n "$SWAP_PART" ] && echo "$(blkid -s UUID -o value "/dev/$SWAP_PART") none swap sw 0 0" >> /etc/fstab
-
-CONFIG
-
-chmod +x /mnt/tmp/chroot-config.sh
-chroot /mnt /tmp/chroot-config.sh
+chown "$SUDO_USER":"$SUDO_USER" "$USER_HOME/.bashrc"
 
 # ============================================
-# 9. Instalar GRUB (usando UUID para mayor compatibilidad)
+# 10. LIMPIEZA FINAL Y MENSAJE
 # ============================================
-info "Instalando GRUB..."
-chroot /mnt grub-install --target=i386-pc "/dev/$DISK"
-chroot /mnt update-grub
-
-# ============================================
-# 10. Preguntar por creación de ISO personalizada
-# ============================================
-echo ""
-info "¿Quieres crear una ISO personalizada de xoniant32?"
-echo "Esto usará la herramienta remaster-live de antiX"
-read -p "¿Crear ISO? (s/n): " CREATE_ISO
-
-if [[ "$CREATE_ISO" =~ ^[Ss]$ ]]; then
-    info "Preparando remasterización..."
-    echo ""
-    echo "Pasos a seguir:"
-    echo "1. El script remaster-live se ejecutará automáticamente"
-    echo "2. Guardará tu sistema personalizado como una nueva ISO"
-    echo ""
-    read -p "Presiona Enter para continuar..."
-    
-    chroot /mnt remaster-live
-fi
-
-# ============================================
-# 11. Limpieza y desmontaje
-# ============================================
-info "Desmontando sistemas..."
-umount /mnt/dev
-umount /mnt/proc
-umount /mnt/sys
-umount /mnt
-[ -n "$SWAP_PART" ] && swapoff "/dev/$SWAP_PART" 2>/dev/null || true
+info "Limpiando paquetes huérfanos finales..."
+apt autoremove --purge -y
+apt clean
 
 echo "========================================"
-echo "   INSTALACIÓN COMPLETADA               "
+echo "   CONVERSIÓN COMPLETADA                "
 echo "========================================"
 echo ""
-echo "El sistema ARRANCARÁ DIRECTAMENTE EN MODO GRÁFICO"
-echo "Terminal principal FIJA (no se puede cerrar)"
+echo "✅ antiX ha sido transformado en xoniant32"
+echo "📦 Paquetes eliminados: entornos de escritorio, apps pesadas"
+echo "🎯 Solo queda: Openbox + terminal fija + scripts XONI"
 echo ""
-echo "Reinicia con: sudo reboot"
+echo "Recomendaciones:"
+echo "1. Reinicia el sistema: sudo reboot"
+echo "2. Al arrancar, entrarás directamente a X con la terminal fija"
+echo "3. Usa 'xoniarch-help' para ver los comandos disponibles"
 echo ""
-echo "Usuario: $USERNAME | Contraseña: la que elegiste"
-echo "Root:    root     | Contraseña: la misma"
+echo "Usuario: $SUDO_USER"
+echo "Contraseña: la misma de antiX"
 echo ""
-echo "Múltiples gestores instalados: lightdm, sddm, lxdm, slim"
-echo "Si uno falla, el siguiente intentará iniciar"
-echo "¡Disfruta xoniant32!"
+echo "¡Disfruta tu xoniant32 minimalista!"
