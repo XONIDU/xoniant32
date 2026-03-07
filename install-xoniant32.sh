@@ -8,7 +8,8 @@
 #   - Openbox (ventanas mínimas)
 #   - Una terminal fija que ocupa toda la pantalla (rxvt-unicode)
 #   - Audio (ALSA)
-#   - Connman para WiFi (nativo de antiX) – sin configuración adicional
+#   - Connman (nativo) – sin configuración extra
+#   - Temas GTK básicos para que las aplicaciones gráficas funcionen
 #   - Scripts XONI
 #   - NADA MÁS
 
@@ -43,13 +44,14 @@ echo "  - TODOS los escritorios completos"
 echo "  - TODAS las aplicaciones gráficas"
 echo "  - TODOS los gestores de display"
 echo "  - Barras de tareas, fondos, compositores"
-echo "  - NetworkManager (usaremos connman nativo)"
+echo "  - NetworkManager (usaremos connman)"
 echo ""
 echo "SOLO DEJARÁ:"
 echo "  - Openbox (mínimo)"
 echo "  - Terminal fija (rxvt-unicode)"
 echo "  - ALSA para audio"
-echo "  - Connman (sin configuración extra)"
+echo "  - Connman (sin configurar)"
+echo "  - Temas GTK básicos (para apps gráficas)"
 echo "  - Scripts XONI"
 echo ""
 read -p "¿Estás seguro? (escribe YES): " CONFIRM
@@ -64,7 +66,7 @@ apt purge -y xfce4* lxde* lxqt* mate-* cinnamon* gnome-* kde-* || true
 info "Purgando gestores de ventanas adicionales..."
 apt purge -y fluxbox icewm jwm dwm awesome i3* || true
 
-info "Purgando aplicaciones gráficas..."
+info "Purgando aplicaciones gráficas (navegadores, suites, reproductores)..."
 apt purge -y firefox* chromium* seamonkey* libreoffice* abiword gnumeric || true
 apt purge -y vlc smplayer audacious parole gimp inkscape blender shotwell || true
 apt purge -y thunderbird* claws-mail* sylpheed* || true
@@ -109,24 +111,27 @@ apt install -y alsa-utils
 # Xorg mínimo
 apt install -y xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-fbdev
 
-# Openbox y terminal (solo lo necesario)
+# Openbox y terminal
 apt install -y openbox rxvt-unicode
 
-# Connman (WiFi nativo) – lo dejamos instalado pero sin configurar
+# Connman (WiFi nativo)
 apt install -y connman
+
+# Temas GTK básicos para que las aplicaciones gráficas funcionen correctamente
+apt install -y adwaita-icon-theme gtk2-engines gtk2-engines-pixbuf gtk2-engines-adwaita
 
 # ============================================
 # 4. CONFIGURAR OPENBOX (TERMINAL FIJA)
 # ============================================
 info "Configurando Openbox con terminal fija..."
 
-# Determinar usuario objetivo (el que ejecuta el script con sudo)
+# Determinar usuario objetivo
 TARGET_USER="${SUDO_USER:-$USER}"
 USER_HOME="/home/$TARGET_USER"
 
 mkdir -p "$USER_HOME/.config/openbox"
 
-# Configuración de Openbox - TERMINAL FIJA sin decoraciones
+# Configuración de Openbox
 cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
@@ -179,7 +184,7 @@ exec openbox-session
 EOF
 chmod +x "$USER_HOME/.xinitrc"
 
-# Auto-login en tty1 (iniciar X automáticamente al hacer login)
+# Auto-login en tty1
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
 # Iniciar X automáticamente en tty1
@@ -324,7 +329,8 @@ echo "SOLO QUEDA:"
 echo "  - Openbox (mínimo)"
 echo "  - Terminal fija (rxvt-unicode)"
 echo "  - ALSA para audio"
-echo "  - Connman (sin configuración extra)"
+echo "  - Connman (sin configurar)"
+echo "  - Temas GTK básicos"
 echo "  - Scripts XONI"
 echo ""
 echo "NO HAY:"
