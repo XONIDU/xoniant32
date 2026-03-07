@@ -1,5 +1,5 @@
 #!/bin/bash
-# xoniant32 – Script de purga ULTRA minimalista
+# install-xoniant32.sh – Script de purga ULTRA minimalista
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniant32
 #
@@ -8,9 +8,9 @@
 #   - Openbox (ventanas mínimas)
 #   - Una terminal fija que ocupa toda la pantalla (rxvt-unicode)
 #   - Audio (ALSA)
-#   - Connman para WiFi (nativo de antiX)
-#   - Scripts XONI (xoni-install, xoni-update, xoni-help, xoni-menu)
-#   - NADA MÁS (ni tint2, ni feh, ni picom, ni escritorio, ni gestores de display)
+#   - Connman para WiFi (nativo de antiX) – sin configuración adicional
+#   - Scripts XONI
+#   - NADA MÁS
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -43,13 +43,13 @@ echo "  - TODOS los escritorios completos"
 echo "  - TODAS las aplicaciones gráficas"
 echo "  - TODOS los gestores de display"
 echo "  - Barras de tareas, fondos, compositores"
-echo "  - NetworkManager (para usar connman)"
+echo "  - NetworkManager (usaremos connman nativo)"
 echo ""
 echo "SOLO DEJARÁ:"
 echo "  - Openbox (mínimo)"
 echo "  - Terminal fija (rxvt-unicode)"
 echo "  - ALSA para audio"
-echo "  - Connman para WiFi"
+echo "  - Connman (sin configuración extra)"
 echo "  - Scripts XONI"
 echo ""
 read -p "¿Estás seguro? (escribe YES): " CONFIRM
@@ -112,7 +112,7 @@ apt install -y xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-
 # Openbox y terminal (solo lo necesario)
 apt install -y openbox rxvt-unicode
 
-# Connman (WiFi nativo)
+# Connman (WiFi nativo) – lo dejamos instalado pero sin configurar
 apt install -y connman
 
 # ============================================
@@ -166,7 +166,7 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 </openbox_menu>
 EOF
 
-# Autostart - SOLO la terminal principal (sin nada más)
+# Autostart - SOLO la terminal principal
 cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
 # TERMINAL PRINCIPAL (NO SE PUEDE CERRAR)
 urxvt -title "principal" &
@@ -191,52 +191,7 @@ EOF
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc" "$USER_HOME/.bashrc"
 
 # ============================================
-# 5. CONFIGURAR CONNMAN (WiFi)
-# ============================================
-info "Configurando Connman..."
-
-# Habilitar connman en runit (sistema de inicio de antiX)
-if [ -d /etc/sv/connman ]; then
-    ln -sf /etc/sv/connman /etc/service/connman
-else
-    # Crear servicio runit si no existe
-    mkdir -p /etc/sv/connman
-    cat > /etc/sv/connman/run << 'EOF'
-#!/bin/bash
-exec chpst -u root /usr/sbin/connmand -n
-EOF
-    chmod +x /etc/sv/connman/run
-    ln -s /etc/sv/connman /etc/service/connman
-fi
-
-# Archivo de ayuda para WiFi en el home del usuario
-cat > "$USER_HOME/.wifi-help" << 'EOF'
-========================================
-   CONECTARSE A WIFI CON CONNMAN
-========================================
-Comando: sudo connmanctl
-
-Dentro de connmanctl:
-  agent on                  # Activar agente
-  enable wifi               # Habilitar WiFi
-  scan wifi                 # Escanear redes
-  services                  # Listar redes
-  connect wifi_nombre       # Conectar (usa TAB para autocompletar)
-  quit                      # Salir
-
-Ejemplo:
-  $ sudo connmanctl
-  connmanctl> agent on
-  connmanctl> enable wifi
-  connmanctl> scan wifi
-  connmanctl> services
-  connmanctl> connect wifi_MiRed_managed_psk
-  connmanctl> quit
-EOF
-chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.wifi-help"
-
-# ============================================
-# 6. CREAR SCRIPTS XONI
+# 5. CREAR SCRIPTS XONI
 # ============================================
 info "Creando scripts XONI..."
 
@@ -336,7 +291,7 @@ EOF
 chmod +x /usr/local/bin/xoni-*
 
 # ============================================
-# 7. ACTUALIZAR MENSAJE DE BIENVENIDA (MOTD)
+# 6. ACTUALIZAR MENSAJE DE BIENVENIDA (MOTD)
 # ============================================
 cat > /etc/motd << 'EOF'
 ========================================
@@ -357,7 +312,7 @@ Repositorio: https://github.com/XONIDU/xoniant32
 EOF
 
 # ============================================
-# 8. FINALIZACIÓN
+# 7. FINALIZACIÓN
 # ============================================
 echo "========================================"
 echo "   PURGA COMPLETADA                     "
@@ -369,7 +324,7 @@ echo "SOLO QUEDA:"
 echo "  - Openbox (mínimo)"
 echo "  - Terminal fija (rxvt-unicode)"
 echo "  - ALSA para audio"
-echo "  - Connman para WiFi"
+echo "  - Connman (sin configuración extra)"
 echo "  - Scripts XONI"
 echo ""
 echo "NO HAY:"
@@ -378,7 +333,7 @@ echo "  - Barras de tareas"
 echo "  - Fondos de pantalla"
 echo "  - Gestores de display"
 echo ""
-echo "WiFi: cat ~/.wifi-help"
+echo "WiFi: usa 'sudo connmanctl' desde la terminal o la opción 3 del menú."
 echo ""
 echo "Reinicia el sistema para aplicar los cambios."
 echo ""
