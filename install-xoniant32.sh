@@ -1,7 +1,12 @@
 #!/bin/bash
-# install-xoniant32.sh – Instalador base de xoniant32 (repos en home)
+# install-xoniant32.sh – Terminal gráfica fija (sin escritorio)
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniant32
+#
+# Este script ELIMINA ESCRITORIOS Y GESTORES DE DISPLAY,
+# pero CONSERVA TODAS LAS DEPENDENCIAS GRÁFICAS.
+# El sistema ARRANCA DIRECTAMENTE en una terminal maximizada
+# que NO SE PUEDE CERRAR.
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -27,30 +32,32 @@ fi
 
 clear
 echo "========================================"
-echo "   XONIANT32 - INSTALADOR BASE         "
+echo "   XONIANT32 - TERMINAL GRÁFICA FIJA   "
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
 echo "ADVERTENCIA: Este script ELIMINARÁ:"
 echo "  - TODOS los escritorios completos"
 echo "  - TODAS las aplicaciones gráficas pesadas"
-echo "  - TODOS los gestores de display"
+echo "  - Gestores de display (lightdm, sddm, lxdm, slim, gdm3, xdm)"
 echo "  - Barras de tareas, fondos, compositores"
 echo "  - NetworkManager (usaremos connman nativo)"
 echo "  - Scripts antiguos (xoniarch-*)"
 echo ""
 echo "CONSERVARÁ:"
-echo "  - Openbox con terminal fija"
+echo "  - TODAS las dependencias gráficas (GTK, Qt, bibliotecas X, controladores)"
+echo "  - Openbox (gestor de ventanas MÍNIMO)"
+echo "  - Terminal fija (rxvt-unicode) - NO SE PUEDE CERRAR"
 echo "  - ALSA para audio"
-echo "  - Connman para WiFi"
+echo "  - Connman para WiFi (configurado)"
 echo "  - mpv + yt-dlp (para xonitube)"
 echo "  - Scripts XONI (xoni-install, xoni-update, xoni-help, xoni-menu)"
-echo "  - Las herramientas XONI se instalarán en /home/tu_usuario/xoni/"
+echo "  - Las herramientas XONI se instalarán en ~/xoni/"
 echo ""
 read -p "¿Estás seguro? (escribe YES): " CONFIRM
 [ "$CONFIRM" != "YES" ] && error_exit "Operación cancelada."
 
 # ============================================
-# 1. PURGA MASIVA
+# 1. PURGA DE ESCRITORIOS (SIN TOCAR DEPENDENCIAS)
 # ============================================
 info "Purgando escritorios completos..."
 apt purge -y xfce4* lxde* lxqt* mate-* cinnamon* gnome-* kde-* || true
@@ -90,7 +97,7 @@ rm -rf /opt/xoniarch 2>/dev/null || true
 rm -rf /opt/xoniarch32 2>/dev/null || true
 
 # ============================================
-# 3. AUTOLIMPIEZA
+# 3. AUTOLIMPIEZA (SOLO DEPENDENCIAS NO USADAS)
 # ============================================
 info "Eliminando dependencias no usadas..."
 apt autoremove --purge -y
@@ -100,29 +107,55 @@ apt clean
 apt autoclean
 
 # ============================================
-# 4. INSTALAR PAQUETES MÍNIMOS + SOPORTE XONITUBE
+# 4. INSTALAR PAQUETES MÍNIMOS
 # ============================================
 info "Actualizando repositorios..."
 apt update || warn "Error en apt update, continuando..."
 
-info "Instalando paquetes base y multimedia..."
-apt install -y git curl wget htop nano alsa-utils xorg openbox rxvt-unicode connman
+info "Instalando paquetes base..."
+apt install -y git curl wget htop nano alsa-utils connman
+
+# Entorno gráfico mínimo (Openbox + terminal)
+apt install -y xorg openbox rxvt-unicode
+
+# Herramientas multimedia
 apt install -y mpv yt-dlp ffmpeg
-apt install -y --fix-missing adwaita-icon-theme gnome-themes-extra || warn "Temas GTK opcionales no instalados."
+
+# Firmware WiFi
+apt install -y firmware-atheros firmware-iwlwifi firmware-realtek || warn "Algún firmware WiFi no se pudo instalar."
+
+# Temas GTK mínimos (para que las apps gráficas no se vean horribles)
+apt install -y --fix-missing adwaita-icon-theme || warn "Temas GTK opcionales no instalados."
 
 # ============================================
-# 5. CONFIGURAR MPV PARA VIDEO (BACKEND X11)
+# 5. CONFIGURAR CONNMAN PARA RED ESTABLE
 # ============================================
-info "Configurando mpv para que el video funcione siempre..."
+info "Configurando connman para WiFi estable..."
+mkdir -p /etc/connman
+cat > /etc/connman/main.conf << 'EOF'
+[General]
+PreferredTechnologies = wifi,ethernet
+AllowHostnames = true
+SingleConnectedTechnology = false
+AutoConnect = true
+NetworkInterfaceBlacklist = vmnet,vboxnet,virbr,ifb
+EOF
+
+systemctl restart connman || sv restart connman || true
+
+# ============================================
+# 6. CONFIGURAR MPV PARA VIDEO
+# ============================================
+info "Configurando mpv..."
 mkdir -p /etc/mpv
 cat > /etc/mpv/mpv.conf << 'EOF'
-# Configuración global de mpv para xoniant32
 vo=x11
 ao=alsa
 cache=yes
 cache-secs=30
 profile=fast
 msg-level=all=error
+x11-bypass-compositor=yes
 EOF
 
 TARGET_USER="${SUDO_USER:-$USER}"
@@ -133,7 +166,7 @@ cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
 
 # ============================================
-# 6. CONFIGURAR OPENBOX (TERMINAL FIJA)
+# 7. CONFIGURAR OPENBOX (TERMINAL FIJA)
 # ============================================
 info "Configurando Openbox con terminal fija..."
 
@@ -188,27 +221,41 @@ exec openbox-session
 EOF
 chmod +x "$USER_HOME/.xinitrc"
 
+# ============================================
+# 8. AUTO-LOGIN EN TTY1 + INICIO DE X
+# ============================================
+info "Configurando auto-login e inicio automático de X..."
+
 # Auto-login en tty1
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $TARGET_USER --noclear %I 38400 linux
+EOF
+
+# Iniciar X automáticamente en .bashrc (solo en tty1)
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
 # Iniciar X automáticamente en tty1
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     startx
+    exit 0
 fi
 EOF
 
-# Mensaje de bienvenida
+# Mensaje de bienvenida (se muestra después de iniciar X)
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
-# Mensaje de bienvenida de Xoniant32
+# Mensaje de bienvenida
 echo "========================================"
-echo "   XONIANT32 by Darian Alberto Camacho Salas"
+echo "   XONIANT32 - by Darian Alberto Camacho Salas"
 echo "========================================"
 echo "Comandos útiles:"
 echo "  xoni-help     : Muestra esta ayuda"
 echo "  xoni-menu     : Menú interactivo"
 echo "  xoni-update   : Actualiza xoniant32 y herramientas en ~/xoni/"
-echo "  xoni-install  : Instala herramientas XONI en ~/xoni/ (ej: xoni-install xonitube)"
+echo "  xoni-install  : Instala herramientas XONI (ej: xoni-install xonitube)"
 echo "  sudo connmanctl : Configura la red WiFi"
 echo "========================================"
 EOF
@@ -216,9 +263,9 @@ EOF
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc" "$USER_HOME/.bashrc"
 
 # ============================================
-# 7. CREAR SCRIPTS XONI PRINCIPALES (VERSIÓN HOME)
+# 9. CREAR SCRIPTS XONI
 # ============================================
-info "Creando scripts XONI (con repositorios en home)..."
+info "Creando scripts XONI..."
 
 cat > /usr/local/bin/xoni-install << 'EOF'
 #!/bin/bash
@@ -241,7 +288,7 @@ if [ -n "$1" ]; then
         git clone "$REPO_BASE/$TOOL.git"
     fi
     
-    # Buscar el archivo principal y crear enlace en /usr/local/bin (pide sudo)
+    # Buscar el archivo principal
     if [ -f "$TOOL/start.py" ]; then
         echo "Se necesita sudo para copiar el script a /usr/local/bin/"
         sudo cp "$TOOL/start.py" "/usr/local/bin/$TOOL"
@@ -274,13 +321,11 @@ EOF
 
 cat > /usr/local/bin/xoni-update << 'EOF'
 #!/bin/bash
-# xoni-update – Actualiza xoniant32 y las herramientas XONI en ~/xoni/
-# Autor: Darian Alberto Camacho Salas
+# xoni-update – Actualiza xoniant32 y herramientas
 
-# Actualizar scripts del sistema (requiere sudo)
 REPO="https://github.com/XONIDU/xoniant32.git"
 DIR="/opt/xoniant32"
-echo "Actualizando scripts de xoniant32 (se necesita sudo)..."
+echo "Actualizando scripts de xoniant32..."
 if [ ! -d "$DIR" ]; then
     sudo git clone "$REPO" "$DIR"
 else
@@ -294,7 +339,7 @@ fi
 sudo rm -f /usr/local/bin/xoniarch-* 2>/dev/null || true
 sudo chmod +x /usr/local/bin/xoni-* 2>/dev/null || true
 
-# Actualizar herramientas en ~/xoni/ (sin sudo)
+# Actualizar herramientas en ~/xoni/
 XONI_DIR="$HOME/xoni"
 if [ -d "$XONI_DIR" ]; then
     echo ""
@@ -306,49 +351,42 @@ if [ -d "$XONI_DIR" ]; then
             cd "$tool" && git pull && cd ..
         fi
     done
-else
-    echo "No existe el directorio $XONI_DIR, no hay herramientas instaladas."
 fi
 
-echo "[OK] xoniant32 actualizado correctamente"
+echo "[OK] xoniant32 actualizado"
 EOF
 
 cat > /usr/local/bin/xoni-help << 'EOF'
 #!/bin/bash
-# xoni-help – Muestra ayuda de xoniant32
-
 cat << 'HELP'
 ========================================
    XONIANT32 - AYUDA
 ========================================
-COMANDOS PRINCIPALES:
+COMANDOS:
   xoni-help                    : Muestra esta ayuda
   xoni-menu                    : Menú interactivo
-  xoni-update                  : Actualiza scripts del sistema y herramientas en ~/xoni/
-  xoni-install <herramienta>   : Instala herramientas XONI en ~/xoni/ y las deja disponibles
+  xoni-update                  : Actualiza scripts y herramientas
+  xoni-install <herramienta>   : Instala herramientas XONI en ~/xoni/
 
-HERRAMIENTAS DISPONIBLES (desde XONIDU):
-  xonitube, xonigraf, xonichat, xonimail, xonicar, xoniclus, xoniconver, xonidate, xonidal, xonidip, xoniencript, xonihelp, xonilab, xoniclient, xoniserver, xoniterm, xonifs, xonigrep, xonisearch, xonicrypt, xonidecode, xonicron, xonisync
+HERRAMIENTAS DISPONIBLES:
+  xonitube, xonigraf, xonichat, xonimail, ...
 
-ATAJOS DE TECLADO (en Openbox):
+ATAJOS:
   Win + x   : Menú principal
   Win + t   : Nueva terminal
   Win + h   : Ayuda
-  Win + u   : Actualizar sistema
+  Win + u   : Actualizar
   Win + q   : Cerrar sesión
 
-El sistema arranca directamente en modo gráfico.
-La terminal principal es fija (no se puede cerrar).
+El sistema ARRANCA DIRECTAMENTE EN MODO GRÁFICO
+La terminal principal es FIJA (no se puede cerrar)
 
 REPOSITORIO: https://github.com/XONIDU/xoniant32
-========================================
 HELP
 EOF
 
 cat > /usr/local/bin/xoni-menu << 'EOF'
 #!/bin/bash
-# xoni-menu – Menú interactivo
-
 while true; do
     clear
     echo "========================================"
@@ -379,7 +417,7 @@ EOF
 chmod +x /usr/local/bin/xoni-*
 
 # ============================================
-# 8. ACTUALIZAR MOTD
+# 10. ACTUALIZAR MOTD
 # ============================================
 cat > /etc/motd << 'EOF'
 ========================================
@@ -388,39 +426,37 @@ cat > /etc/motd << 'EOF'
 Comandos útiles:
   xoni-help     : Muestra esta ayuda
   xoni-menu     : Menú interactivo
-  xoni-update   : Actualiza scripts y herramientas en ~/xoni/
-  xoni-install  : Instala herramientas XONI en ~/xoni/ (ej: xoni-install xonitube)
+  xoni-update   : Actualiza scripts y herramientas
+  xoni-install  : Instala herramientas XONI
   sudo connmanctl : Configura la red WiFi
-  xonitube      : (después de instalarlo) Buscador de YouTube
 
-El sistema arranca directamente en modo gráfico.
-La terminal principal es fija (no se puede cerrar).
+El sistema ARRANCA DIRECTAMENTE EN MODO GRÁFICO
+La terminal principal es FIJA (no se puede cerrar)
 
 Repositorio: https://github.com/XONIDU/xoniant32
 ========================================
 EOF
 
 # ============================================
-# 9. FINALIZACIÓN
+# 11. FINALIZACIÓN
 # ============================================
 echo "========================================"
-echo "   INSTALACIÓN BASE COMPLETADA          "
+echo "   INSTALACIÓN COMPLETADA               "
 echo "========================================"
 echo ""
 echo "antiX ha sido transformado en xoniant32"
 echo ""
-echo "Componentes instalados:"
-echo "  - Openbox con terminal fija"
-echo "  - ALSA (audio)"
-echo "  - Connman (WiFi)"
-echo "  - mpv + yt-dlp (listos para xonitube)"
-echo "  - Scripts XONI: xoni-install, xoni-update, xoni-help, xoni-menu"
+echo "Características:"
+echo "  - Terminal gráfica fija (NO se puede cerrar)"
+echo "  - TODAS las dependencias gráficas conservadas"
+echo "  - Openbox como gestor de ventanas mínimo"
+echo "  - ALSA + Connman + mpv listos"
+echo "  - Scripts XONI instalados"
 echo ""
-echo "Las herramientas XONI se instalarán en: ~/xoni/"
-echo "Para instalar xonitube, ejecuta: xoni-install xonitube"
+echo "Para instalar xonitube: xoni-install xonitube"
 echo ""
-echo "Reinicia el sistema para aplicar los cambios: sudo reboot"
+echo "Reinicia: sudo reboot"
 echo ""
-echo "Usuario: $TARGET_USER (contraseña sin cambios)"
+echo "Usuario: $TARGET_USER"
 echo ""
 echo "¡Disfruta xoniant32!"
