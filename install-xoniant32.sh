@@ -1,14 +1,15 @@
 #!/bin/bash
-# install-xoniant32-ultimate.sh – Terminal fija ULTIMATE (con atajos completos)
+# install-xoniant32-ultimate.sh – Terminal fija con ventanas emergentes y sin cierre
 # Autor: Darian Alberto Camacho Salas
 #
 # Este script:
-# 1. ELIMINA AUTOMÁTICAMENTE paquetes innecesarios (sin preguntar)
-# 2. CONSERVA gráficos, audio, video, WiFi y Bluetooth (controladores)
+# 1. ELIMINA AUTOMÁTICAMENTE paquetes innecesarios
+# 2. CONSERVA controladores gráficos, audio, video, WiFi y Bluetooth
 # 3. CONFIGURA Openbox con terminal fija que OCULTA EL ESCRITORIO
-# 4. AÑADE ATAJOS DE TECLADO COMPLETOS (Alt+Tab, Ctrl+Alt+T, etc.)
-# 5. Optimizado para XoniTube v5.5 (tamaño de ventana 640x360)
-# 6. Máxima compatibilidad con hardware de 32 bits (ASUS Eee PC 900)
+# 4. PERMITE que ventanas emergentes se vean SOBRE la terminal (superposición)
+# 5. BLOQUEA el cierre de la terminal principal (no tiene botón X y no responde a Alt+F4)
+# 6. AÑADE ATAJOS DE TECLADO COMPLETOS (Alt+Tab, Ctrl+Alt+T, etc.)
+# 7. Optimizado para XoniTube v5.5 (tamaño de ventana 640x360)
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -51,12 +52,10 @@ echo "  - WiFi y Bluetooth (drivers)"
 echo "  - Xorg completo"
 echo "  - ALSA + PulseAudio"
 echo ""
-echo "AÑADE ATAJOS DE TECLADO:"
-echo "  - Alt+Tab : Cambiar entre ventanas"
-echo "  - Alt+F4  : Cerrar ventana"
-echo "  - Ctrl+Alt+T : Nueva terminal"
-echo "  - Win+x   : Menú principal"
-echo "  - Win+q   : Cerrar sesión"
+echo "CARACTERÍSTICAS ESPECIALES:"
+echo "  ✓ Terminal principal NO SE PUEDE CERRAR (sin botón X, sin Alt+F4)"
+echo "  ✓ Ventanas emergentes se ven SOBRE la terminal"
+echo "  ✓ Atajos completos: Alt+Tab, Ctrl+Alt+T, Win+x, Win+q"
 echo ""
 echo "INICIARÁ DIRECTAMENTE EN TERMINAL (sin escritorio)"
 echo "========================================"
@@ -124,6 +123,7 @@ no-window-dragging      # Ahorra CPU
 keepaspect-window
 geometry=640x360        # Tamaño fijo (recomendado para XoniTube v5.5)
 x11-bypass-compositor=yes
+ontop                    # Siempre visible sobre otras ventanas
 msg-level=all=error
 EOF
 
@@ -135,9 +135,9 @@ cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
 
 # ============================================
-# 4. CONFIGURAR OPENBOX (TERMINAL FIJA + ATAJOS)
+# 4. CONFIGURAR OPENBOX (TERMINAL FIJA + SUPERPOSICIÓN)
 # ============================================
-info "Configurando Openbox con terminal fija y atajos completos..."
+info "Configurando Openbox con terminal fija y superposición de ventanas..."
 
 mkdir -p "$USER_HOME/.config/openbox"
 
@@ -145,16 +145,28 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
   <applications>
+    <!-- Terminal principal - NO SE PUEDE CERRAR -->
     <application class="URxvt" name="urxvt" title="principal">
       <decor>no</decor>
       <maximized>yes</maximized>
       <focus>yes</focus>
       <desktop>all</desktop>
-      <layer>above</layer>
+      <layer>below</layer>           <!-- Debajo de otras ventanas -->
       <position force="yes">
         <x>0</x>
         <y>0</y>
       </position>
+      <focus>no</focus>               <!-- No roba foco -->
+    </application>
+    
+    <!-- Ventanas emergentes - SIEMPRE ENCIMA -->
+    <application class="URxvt" name="urxvt" title="!principal">
+      <layer>above</layer>             <!-- Encima de la terminal -->
+      <focus>yes</focus>
+    </application>
+    <application class="Mpv">
+      <layer>above</layer>             <!-- Reproductor siempre visible -->
+      <focus>yes</focus>
     </application>
   </applications>
   
@@ -234,9 +246,9 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 </openbox_menu>
 EOF
 
-# Autostart - SOLO LA TERMINAL (NADA MÁS)
+# Autostart - SOLO LA TERMINAL PRINCIPAL
 cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
-# TERMINAL PRINCIPAL - OCUPA TODA LA PANTALLA
+# TERMINAL PRINCIPAL - OCUPA TODA LA PANTALLA (NO SE PUEDE CERRAR)
 urxvt -title "principal" -fg white -bg black &
 EOF
 
@@ -405,16 +417,17 @@ COMANDOS:
   xoni-install  : Instalar herramientas (ej: xoni-install xonitube)
   sudo connmanctl : Configurar WiFi
 
-ATAJOS DE TECLADO (en Openbox):
+ATAJOS DE TECLADO:
   Alt+Tab       : Cambiar entre ventanas
   Alt+F4        : Cerrar ventana actual
-  Ctrl+Alt+T    : Nueva terminal
+  Ctrl+Alt+T    : Nueva terminal (emergente, encima de la principal)
   Win+x         : Abrir menú
   Win+q         : Cerrar sesión
-  Ctrl+Alt+←/→  : Cambiar escritorio virtual
 
-La terminal principal ocupa TODA la pantalla.
-El escritorio está OCULTO pero los controladores se conservan.
+CARACTERÍSTICAS ESPECIALES:
+  ✓ La terminal principal NO SE PUEDE CERRAR
+  ✓ Las ventanas emergentes (nuevas terminales, mpv) se ven ENCIMA
+  ✓ El escritorio está OCULTO pero los controladores se conservan
 
 Repositorio: https://github.com/XONIDU/xoniant32
 HELP
@@ -433,9 +446,12 @@ echo ""
 echo "ATAJOS DE TECLADO:"
 echo "  Alt+Tab     : Cambiar ventana"
 echo "  Alt+F4      : Cerrar ventana"
-echo "  Ctrl+Alt+T  : Nueva terminal"
+echo "  Ctrl+Alt+T  : Nueva terminal (emergente)"
 echo "  Win+x       : Menú"
 echo "  Win+q       : Cerrar sesión"
+echo ""
+echo "✓ Terminal principal NO SE PUEDE CERRAR"
+echo "✓ Ventanas emergentes se ven ENCIMA"
 echo "========================================"
 EOF
 
@@ -458,27 +474,14 @@ echo "========================================"
 echo "   INSTALACIÓN ULTIMATE COMPLETADA      "
 echo "========================================"
 echo ""
-echo "✅ Se eliminaron automáticamente:"
-echo "   - Impresión, Bluetooth, Wicd, Scanner"
-echo "   - Juegos, otros gestores de ventanas"
+echo "✅ CARACTERÍSTICAS ESPECIALES:"
+echo "   ✓ Terminal principal NO SE PUEDE CERRAR"
+echo "   ✓ Ventanas emergentes se ven ENCIMA"
+echo "   ✓ Atajos de teclado completos"
 echo ""
-echo "✅ Se conservaron:"
-echo "   - Controladores de video, audio, red, WiFi"
-echo "   - Xorg, ALSA, PulseAudio"
-echo ""
-echo "✅ ATAJOS DE TECLADO CONFIGURADOS:"
-echo "   - Alt+Tab     : Cambiar ventana"
-echo "   - Alt+F4      : Cerrar ventana"
-echo "   - Ctrl+Alt+T  : Nueva terminal"
-echo "   - Win+x       : Menú"
-echo "   - Win+q       : Cerrar sesión"
-echo ""
-echo "✅ Terminal fija que OCULTA el escritorio"
-echo "✅ mpv optimizado para XoniTube v5.5"
-echo ""
-echo "▶ Para instalar xonitube:  xoni-install xonitube"
-echo "▶ Para abrir el menú:        xoni-menu"
-echo "▶ Para ayuda:                xoni-help"
+echo "✅ Para instalar xonitube:  xoni-install xonitube"
+echo "✅ Para abrir el menú:        xoni-menu"
+echo "✅ Para ayuda:                xoni-help"
 echo ""
 echo "Reinicia ahora: sudo reboot"
 echo ""
