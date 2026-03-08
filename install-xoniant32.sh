@@ -1,13 +1,12 @@
 #!/bin/bash
-# install-xoniant32.sh – FORZAR TERMINAL FIJA SIN ESCRITORIO
+# install-xoniant32.sh – Terminal fija + limpieza de recursos
 # Autor: Darian Alberto Camacho Salas
-# Repositorio: https://github.com/XONIDU/xoniant32
 #
-# Este script FUERZA que el sistema inicie DIRECTAMENTE en una terminal
-# gráfica maximizada, SIN MOSTRAR EL ESCRITORIO.
-# - Openbox se inicia pero NO SE VE (solo la terminal)
-# - La terminal NO SE PUEDE CERRAR (sin bordes, sin botón X)
-# - El escritorio queda OCULTO detrás de la terminal
+# Este script:
+# 1. NO DESINSTALA NADA POR DEFECTO (solo pregunta)
+# 2. Configura Openbox con terminal fija que oculta el escritorio
+# 3. Ofrece limpiar paquetes innecesarios para liberar RAM
+# 4. Las herramientas XONI se instalan en ~/ (ej: ~/xonitube)
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -33,51 +32,132 @@ fi
 
 clear
 echo "========================================"
-echo "   XONIANT32 - TERMINAL FIJA FORZADA   "
+echo "   XONIANT32 - TERMINAL FIJA + LIMPIEZA"
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
-echo "Este script FUERZA que el sistema inicie"
-echo "DIRECTAMENTE en una terminal gráfica."
-echo "NO SE VERÁ EL ESCRITORIO (solo la terminal)."
-echo "La terminal NO SE PUEDE CERRAR."
 echo ""
-read -p "¿Continuar? (s/n): " CONFIRM
-[[ "$CONFIRM" =~ ^[Ss]$ ]] || error_exit "Operación cancelada."
+echo "Este script te preguntará ANTES de eliminar nada."
+echo "Ningún paquete se borrará sin tu confirmación."
+echo ""
 
 # ============================================
-# 1. ACTUALIZAR REPOSITORIOS
+# SECCIÓN DE LIMPIEZA OPCIONAL (BASADA EN FOROS)
+# ============================================
+echo "========================================"
+echo "   LIMPIEZA OPCIONAL DE RECURSOS        "
+echo "========================================"
+echo ""
+echo "Basado en recomendaciones de la comunidad antiX [citation:1][citation:3]"
+echo "para reducir el consumo de RAM (ahorro potencial: ~20-50 MB)"
+echo ""
+
+# Cups (servidor de impresión) - innecesario si no hay impresora
+if dpkg -l cups >/dev/null 2>&1; then
+    read -p "¿Eliminar servidor de impresión CUPS? (s/n) [recomendado si no tienes impresora]: " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        apt purge -y cups || warn "No se pudo eliminar cups"
+        info "CUPS eliminado."
+    fi
+fi
+
+# Bluetooth
+if dpkg -l bluez >/dev/null 2>&1; then
+    read -p "¿Eliminar soporte Bluetooth? (s/n) [ahorra ~10MB RAM]: " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        apt purge -y bluez* bluetooth* || warn "No se pudo eliminar bluetooth"
+        info "Bluetooth eliminado."
+    fi
+fi
+
+# Wicd (gestor de red alternativo) - no necesario si usas connman
+if dpkg -l wicd >/dev/null 2>&1; then
+    read -p "¿Eliminar wicd? (s/n) [usamos connman, ahorra ~15MB RAM]: " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        apt purge -y wicd* || warn "No se pudo eliminar wicd"
+        info "wicd eliminado."
+    fi
+fi
+
+# Saned (servicio de scanner)
+if dpkg -l saned >/dev/null 2>&1; then
+    read -p "¿Eliminar soporte de scanner (saned)? (s/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        apt purge -y saned || warn "No se pudo eliminar saned"
+        info "saned eliminado."
+    fi
+fi
+
+# Servicios para portátiles (si es escritorio)
+if ! dmidecode -s system-product-name 2>/dev/null | grep -qi "laptop"; then
+    echo ""
+    echo "Parece que este equipo NO es un portátil."
+    read -p "¿Eliminar servicios específicos de portátiles (acpi, pcmciautils)? (s/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        apt purge -y acpi acpid pcmciautils || warn "Alguno no se pudo eliminar"
+        info "Servicios de portátil eliminados."
+    fi
+fi
+
+# Juegos (gnome-games, etc.)
+read -p "¿Eliminar juegos preinstalados? (s/n) [ahorra ~30MB]: " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Ss]$ ]]; then
+    apt purge -y gnome-games* aisleriot solitaire || warn "Algunos juegos no se eliminaron"
+    info "Juegos eliminados."
+fi
+
+# Gestores de ventanas adicionales (opcional, pero para xoniant32 solo necesitamos Openbox)
+echo ""
+echo "Xoniant32 usa Openbox como gestor principal."
+read -p "¿Eliminar otros gestores de ventanas (icewm, fluxbox, jwm)? (s/n) [recomendado]: " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Ss]$ ]]; then
+    apt purge -y icewm* fluxbox* jwm* || warn "Algunos no se eliminaron"
+    info "Otros gestores eliminados."
+fi
+
+# ============================================
+# 2. AUTOLIMPIEZA FINAL
+# ============================================
+info "Eliminando dependencias no usadas..."
+apt autoremove --purge -y
+
+info "Limpiando caché..."
+apt clean
+apt autoclean
+
+# ============================================
+# 3. INSTALAR PAQUETES NECESARIOS
 # ============================================
 info "Actualizando repositorios..."
-apt update || warn "Error en apt update, continuando..."
+apt update
 
-# ============================================
-# 2. INSTALAR PAQUETES NECESARIOS
-# ============================================
 info "Instalando paquetes necesarios..."
 apt install -y git curl wget htop nano alsa-utils connman
 apt install -y xorg openbox rxvt-unicode
 apt install -y mpv yt-dlp ffmpeg
-apt install -y firmware-atheros firmware-iwlwifi firmware-realtek || warn "Algún firmware WiFi no se pudo instalar."
-apt install -y --fix-missing adwaita-icon-theme || warn "Temas GTK opcionales no instalados."
+apt install -y firmware-atheros firmware-iwlwifi firmware-realtek || true
 
 # ============================================
-# 3. CONFIGURAR CONNMAN
+# 4. CONFIGURAR CONNMAN
 # ============================================
-info "Configurando connman para WiFi estable..."
+info "Configurando connman..."
 mkdir -p /etc/connman
 cat > /etc/connman/main.conf << 'EOF'
 [General]
 PreferredTechnologies = wifi,ethernet
 AllowHostnames = true
-SingleConnectedTechnology = false
 AutoConnect = true
-NetworkInterfaceBlacklist = vmnet,vboxnet,virbr,ifb
 EOF
-
 systemctl restart connman || sv restart connman || true
 
 # ============================================
-# 4. CONFIGURAR MPV
+# 5. CONFIGURAR MPV
 # ============================================
 info "Configurando mpv..."
 mkdir -p /etc/mpv
@@ -99,13 +179,12 @@ cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
 
 # ============================================
-# 5. CONFIGURAR OPENBOX (TERMINAL FIJA OCUPANDO TODO)
+# 6. CONFIGURAR OPENBOX (TERMINAL FIJA)
 # ============================================
-info "Configurando Openbox con terminal fija que OCULTA el escritorio..."
+info "Configurando Openbox con terminal fija..."
 
 mkdir -p "$USER_HOME/.config/openbox"
 
-# Configuración de Openbox - TERMINAL SOBRE EL ESCRITORIO
 cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
@@ -127,7 +206,6 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
     <keybind key="W-x"><action name="Execute"><command>xoni-menu</command></action></keybind>
     <keybind key="W-t"><action name="Execute"><command>urxvt</command></action></keybind>
     <keybind key="W-h"><action name="Execute"><command>xoni-help</command></action></keybind>
-    <keybind key="W-u"><action name="Execute"><command>xoni-update</command></action></keybind>
     <keybind key="W-q"><action name="Exit"/></keybind>
   </keyboard>
 </openbox_config>
@@ -140,22 +218,18 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
   <menu id="root-menu" label="Xoniant32">
     <item label="Nueva terminal"><action name="Execute"><command>urxvt</command></action></item>
     <item label="Instalar herramienta XONI"><action name="Execute"><command>urxvt -e xoni-install</command></action></item>
-    <item label="Configurar red (connman)"><action name="Execute"><command>urxvt -e sudo connmanctl</command></action></item>
-    <item label="Monitor sistema"><action name="Execute"><command>urxvt -e htop</command></action></item>
-    <item label="Actualizar xoniant32"><action name="Execute"><command>urxvt -e xoni-update</command></action></item>
-    <item label="Ayuda"><action name="Execute"><command>urxvt -e xoni-help</command></action></item>
+    <item label="Configurar red"><action name="Execute"><command>urxvt -e sudo connmanctl</command></action></item>
     <item label="Cerrar sesión"><action name="Exit"/></item>
   </menu>
 </openbox_menu>
 EOF
 
-# Autostart - TERMINAL PRINCIPAL (ocupa toda la pantalla)
+# Autostart - solo terminal
 cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
-# TERMINAL PRINCIPAL - OCUPA TODA LA PANTALLA (NO SE PUEDE CERRAR)
-urxvt -title "principal" -geometry 200x100 -fg white -bg black &
+# TERMINAL PRINCIPAL - OCUPA TODA LA PANTALLA
+urxvt -title "principal" -fg white -bg black &
 EOF
 
-# .xinitrc
 cat > "$USER_HOME/.xinitrc" << 'EOF'
 #!/bin/sh
 exec openbox-session
@@ -163,30 +237,19 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 6. FORZAR OPENBOX COMO ÚNICA SESIÓN
+# 7. DESACTIVAR OTROS GESTORES DE VENTANAS
 # ============================================
-info "Configurando Openbox como única sesión..."
+info "Desactivando otros gestores de ventanas..."
+for wm in icewm fluxbox jwm; do
+    if [ -f "/usr/share/xsessions/$wm.desktop" ]; then
+        mv "/usr/share/xsessions/$wm.desktop" "/usr/share/xsessions/$wm.desktop.disabled" 2>/dev/null || true
+    fi
+done
 
-# Crear archivo de sesión para gestores de display
-mkdir -p /usr/share/xsessions
-cat > /usr/share/xsessions/openbox.desktop << 'EOF'
-[Desktop Entry]
-Name=Openbox
-Comment=Openbox Window Manager
-Exec=openbox-session
-Type=Application
-EOF
-
-# Deshabilitar otros gestores de ventanas
-if [ -f /usr/share/xsessions/icewm.desktop ]; then
-    mv /usr/share/xsessions/icewm.desktop /usr/share/xsessions/icewm.desktop.bak 2>/dev/null || true
-fi
-if [ -f /usr/share/xsessions/fluxbox.desktop ]; then
-    mv /usr/share/xsessions/fluxbox.desktop /usr/share/xsessions/fluxbox.desktop.bak 2>/dev/null || true
-fi
-if [ -f /usr/share/xsessions/jwm.desktop ]; then
-    mv /usr/share/xsessions/jwm.desktop /usr/share/xsessions/jwm.desktop.bak 2>/dev/null || true
-fi
+# ============================================
+# 8. CONFIGURAR AUTO-LOGIN
+# ============================================
+info "Configurando auto-login..."
 
 # LightDM
 if [ -f /etc/lightdm/lightdm.conf ]; then
@@ -197,7 +260,6 @@ autologin-user=$TARGET_USER
 autologin-session=openbox
 user-session=openbox
 EOF
-    info "LightDM configurado."
 fi
 
 # SDDM
@@ -207,243 +269,90 @@ if [ -f /etc/sddm.conf ]; then
 [Autologin]
 User=$TARGET_USER
 Session=openbox.desktop
-
-[Theme]
-Current=breeze
 EOF
-    info "SDDM configurado."
 fi
 
-# LXDM
-if [ -f /etc/lxdm/lxdm.conf ]; then
-    sed -i "s/^# autologin=.*/autologin=$TARGET_USER/" /etc/lxdm/lxdm.conf
-    sed -i "s/^# session=.*/session=\/usr\/share\/xsessions\/openbox.desktop/" /etc/lxdm/lxdm.conf
-    info "LXDM configurado."
-fi
-
-# SLiM
-if [ -f /etc/slim.conf ]; then
-    echo "default_user $TARGET_USER" >> /etc/slim.conf
-    echo "auto_login yes" >> /etc/slim.conf
-    echo "session openbox" >> /etc/slim.conf
-    info "SLiM configurado."
-fi
-
-# Si no hay gestor de display (modo texto)
+# Si no hay gestor de display
 if ! pgrep -x "lightdm|sddm|lxdm|slim" >/dev/null 2>&1; then
-    warn "No se detectó gestor de display. Se configurará auto-login en tty1 con startx automático."
+    warn "No se detectó gestor de display. Configurando auto-login en consola."
     mkdir -p /etc/systemd/system/getty@tty1.service.d
     cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $TARGET_USER --noclear %I 38400 linux
 EOF
-    # Añadir startx al .bashrc
     cat >> "$USER_HOME/.bashrc" << 'EOF'
-
-# Iniciar X automáticamente en tty1
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     startx
     exit 0
 fi
 EOF
-    info "Auto-login en consola configurado."
 fi
 
 # ============================================
-# 7. MENSAJE DE BIENVENIDA
-# ============================================
-cat >> "$USER_HOME/.bashrc" << 'EOF'
-
-# Mensaje de bienvenida
-echo "========================================"
-echo "   XONIANT32 - TERMINAL FIJA            "
-echo "   by Darian Alberto Camacho Salas     "
-echo "========================================"
-echo "La terminal principal OCUPA TODA LA PANTALLA."
-echo "NO SE VE EL ESCRITORIO."
-echo ""
-echo "Comandos útiles:"
-echo "  xoni-help     : Muestra esta ayuda"
-echo "  xoni-menu     : Menú interactivo (Win+x)"
-echo "  xoni-update   : Actualiza xoniant32"
-echo "  xoni-install  : Instala herramientas XONI en ~/"
-echo "  sudo connmanctl : Configura la red WiFi"
-echo "========================================"
-EOF
-
-chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc" "$USER_HOME/.bashrc"
-
-# ============================================
-# 8. CREAR SCRIPTS XONI
+# 9. CREAR SCRIPTS XONI
 # ============================================
 info "Creando scripts XONI..."
 
 cat > /usr/local/bin/xoni-install << 'EOF'
 #!/bin/bash
-# xoni-install – Instalador de herramientas XONI directamente en ~/
-# Autor: Darian Alberto Camacho Salas
-
 REPO_BASE="https://github.com/XONIDU"
 cd "$HOME"
-
-if [ -n "$1" ]; then
-    TOOL="$1"
-    echo "Instalando $TOOL desde $REPO_BASE/$TOOL.git en ~/$TOOL ..."
-    
-    if [ -d "$TOOL" ]; then
-        echo "Actualizando $TOOL existente..."
-        cd "$TOOL" && git pull && cd ..
-    else
-        git clone "$REPO_BASE/$TOOL.git"
-    fi
-    
-    # Buscar el archivo principal
-    if [ -f "$TOOL/start.py" ]; then
-        echo "Creando enlace simbólico en /usr/local/bin/$TOOL (necesita sudo)"
-        sudo ln -sf "$HOME/$TOOL/start.py" "/usr/local/bin/$TOOL"
-        sudo chmod +x "/usr/local/bin/$TOOL"
-        echo "[OK] $TOOL disponible como comando global"
-    elif [ -f "$TOOL/$TOOL.py" ]; then
-        sudo ln -sf "$HOME/$TOOL/$TOOL.py" "/usr/local/bin/$TOOL"
-        sudo chmod +x "/usr/local/bin/$TOOL"
-        echo "[OK] $TOOL disponible como comando global"
-    elif [ -f "$TOOL/$TOOL.sh" ]; then
-        sudo ln -sf "$HOME/$TOOL/$TOOL.sh" "/usr/local/bin/$TOOL"
-        sudo chmod +x "/usr/local/bin/$TOOL"
-        echo "[OK] $TOOL disponible como comando global"
-    else
-        echo "[AVISO] No se encontró archivo principal, pero el repositorio está en ~/$TOOL"
-    fi
-
-else
-    echo "Herramientas disponibles en XONIDU:"
-    echo "  xonitube, xonigraf, xonichat, xonimail, xonicar, xoniclus, xoniconver, xonidate, xonidal, xonidip, xoniencript, xonihelp, xonilab, xoniclient, xoniserver, xoniterm, xonifs, xonigrep, xonisearch, xonicrypt, xonidecode, xonicron, xonisync"
-    echo ""
-    read -p "Herramienta a instalar: " TOOL
-    if [ -n "$TOOL" ]; then
-        exec "$0" "$TOOL"
-    else
-        echo "No se especificó ninguna herramienta."
-    fi
+TOOL="${1:-}"
+if [ -z "$TOOL" ]; then
+    echo "Herramientas: xonitube, xonigraf, xonichat, xonimail"
+    read -p "Herramienta: " TOOL
 fi
-EOF
-
-cat > /usr/local/bin/xoni-update << 'EOF'
-#!/bin/bash
-# xoni-update – Actualiza xoniant32 y las herramientas XONI
-
-# Actualizar scripts del sistema
-REPO="https://github.com/XONIDU/xoniant32.git"
-DIR="/opt/xoniant32"
-echo "Actualizando scripts de xoniant32..."
-if [ ! -d "$DIR" ]; then
-    sudo git clone "$REPO" "$DIR"
-else
-    cd "$DIR" && sudo git pull
+if [ -n "$TOOL" ]; then
+    [ -d "$TOOL" ] || git clone "$REPO_BASE/$TOOL.git"
+    [ -f "$TOOL/start.py" ] && sudo ln -sf "$HOME/$TOOL/start.py" "/usr/local/bin/$TOOL"
+    sudo chmod +x "/usr/local/bin/$TOOL"
+    echo "[OK] $TOOL"
 fi
-
-if [ -d "$DIR/scripts" ]; then
-    sudo cp -v "$DIR/scripts"/xoni-* /usr/local/bin/ 2>/dev/null || true
-fi
-
-sudo rm -f /usr/local/bin/xoniarch-* 2>/dev/null || true
-sudo chmod +x /usr/local/bin/xoni-* 2>/dev/null || true
-
-# Actualizar herramientas en ~/
-echo ""
-echo "Actualizando herramientas en ~/ ..."
-cd "$HOME"
-for tool in */; do
-    toolname="${tool%/}"
-    if [ -d "$toolname" ] && [ -d "$toolname/.git" ]; then
-        echo "Actualizando $toolname..."
-        cd "$toolname" && git pull && cd "$HOME"
-    fi
-done
-
-echo "[OK] xoniant32 actualizado"
-EOF
-
-cat > /usr/local/bin/xoni-help << 'EOF'
-#!/bin/bash
-cat << 'HELP'
-========================================
-   XONIANT32 - AYUDA
-========================================
-COMANDOS:
-  xoni-help                    : Muestra esta ayuda
-  xoni-menu                    : Menú interactivo
-  xoni-update                  : Actualiza scripts y herramientas
-  xoni-install <herramienta>   : Instala herramientas XONI en ~/
-
-HERRAMIENTAS DISPONIBLES:
-  xonitube, xonigraf, xonichat, xonimail, ...
-
-ATAJOS:
-  Win + x   : Menú principal
-  Win + t   : Nueva terminal
-  Win + h   : Ayuda
-  Win + u   : Actualizar
-  Win + q   : Cerrar sesión
-
-El sistema arranca DIRECTAMENTE en MODO GRÁFICO.
-La terminal principal OCUPA TODA LA PANTALLA.
-NO SE VE EL ESCRITORIO.
-La terminal principal NO SE PUEDE CERRAR.
-
-REPOSITORIO: https://github.com/XONIDU/xoniant32
-HELP
 EOF
 
 cat > /usr/local/bin/xoni-menu << 'EOF'
 #!/bin/bash
 while true; do
     clear
-    echo "========================================"
-    echo "      XONIANT32 - MENÚ PRINCIPAL"
-    echo "========================================"
+    echo "============================="
+    echo "    XONIANT32 - MENÚ"
+    echo "============================="
     echo "1) Nueva terminal"
-    echo "2) Instalar herramienta XONI"
-    echo "3) Configurar red (connman)"
-    echo "4) Monitor del sistema (htop)"
-    echo "5) Actualizar xoniant32"
-    echo "6) Ayuda"
-    echo "7) Cerrar sesión"
-    echo ""
-    read -p "Opción [1-7]: " opt
+    echo "2) Instalar herramienta"
+    echo "3) Configurar red"
+    echo "4) Cerrar sesión"
+    read -p "Opción: " opt
     case $opt in
         1) urxvt ;;
-        2) urxvt -e xoni-install ; read -p "Presiona Enter..." ;;
+        2) urxvt -e xoni-install ; read -p "Enter..." ;;
         3) urxvt -e sudo connmanctl ;;
-        4) urxvt -e htop ;;
-        5) urxvt -e xoni-update ; read -p "Presiona Enter..." ;;
-        6) xoni-help ; read -p "Presiona Enter..." ;;
-        7) openbox --exit ;;
-        *) echo "Opción inválida"; sleep 2 ;;
+        4) openbox --exit ;;
     esac
 done
 EOF
 
+cat > /usr/local/bin/xoni-help << 'EOF'
+#!/bin/bash
+cat << 'HELP'
+Sistema XONIANT32 - Terminal Fija
+Comandos: xoni-menu, xoni-install <tool>
+Win+x: Menú | Win+t: Nueva terminal | Win+q: Salir
+HELP
+EOF
+
 chmod +x /usr/local/bin/xoni-*
 
-# ============================================
-# 9. ACTUALIZAR MOTD
-# ============================================
-cat > /etc/motd << 'EOF'
-========================================
-   XONIANT32 - TERMINAL FIJA
-   by Darian Alberto Camacho Salas
-========================================
-El sistema arranca DIRECTAMENTE en MODO GRÁFICO.
-La terminal principal OCUPA TODA LA PANTALLA.
-NO SE VE EL ESCRITORIO.
-La terminal principal NO SE PUEDE CERRAR.
-
-Comandos: xoni-help
-Repositorio: https://github.com/XONIDU/xoniant32
-========================================
+cat >> "$USER_HOME/.bashrc" << 'EOF'
+echo "========================================"
+echo "   XONIANT32 - by Darian Alberto Camacho Salas"
+echo "========================================"
+echo "Comandos: xoni-help, xoni-menu, xoni-install"
+echo "Win+x: Menú | Win+t: Terminal | Win+q: Salir"
+echo "========================================"
 EOF
+
+chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc" "$USER_HOME/.bashrc"
 
 # ============================================
 # 10. FINALIZACIÓN
@@ -452,14 +361,16 @@ echo "========================================"
 echo "   INSTALACIÓN COMPLETADA               "
 echo "========================================"
 echo ""
-echo "Se ha FORZADO la terminal fija."
-echo "Al reiniciar, verás SOLO LA TERMINAL ocupando toda la pantalla."
-echo "NO SE VERÁ EL ESCRITORIO."
+echo "Resumen:"
+echo "✓ Terminal fija configurada (oculta el escritorio)"
+if [ -n "$(apt list --installed 2>/dev/null | grep -E 'cups|bluez|wicd')" ]; then
+    echo "✓ Se eliminaron algunos paquetes según tus respuestas"
+else
+    echo "✓ No se eliminaron paquetes adicionales"
+fi
 echo ""
-echo "Para instalar xonitube: xoni-install xonitube"
+echo "Al reiniciar, SOLO VERÁS LA TERMINAL."
 echo ""
 echo "Reinicia ahora: sudo reboot"
-echo ""
 echo "Usuario: $TARGET_USER"
 echo ""
-echo "¡Disfruta xoniant32!"
