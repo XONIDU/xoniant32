@@ -1,12 +1,14 @@
 #!/bin/bash
-# install-xoniant32.sh – Terminal gráfica fija (conservando todo)
+# install-xoniant32.sh – Terminal gráfica fija como inicio por defecto
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniant32
 #
-# Este script NO ELIMINA NINGÚN ESCRITORIO NI GESTOR DE DISPLAY.
-# Solo AÑADE la funcionalidad de terminal fija (Openbox + rxvt-unicode)
-# y optimiza audio/vídeo. Las herramientas XONI se instalan en ~/
-# y están disponibles como comandos globales mediante enlaces simbólicos.
+# Este script NO ELIMINA NINGÚN COMPONENTE DEL SISTEMA.
+# Solo configura Openbox como sesión por defecto con terminal fija.
+# Al arrancar, el sistema iniciará DIRECTAMENTE en una terminal maximizada
+# sin mostrar escritorio. La terminal NO SE PUEDE CERRAR.
+# Las herramientas XONI se instalan directamente en ~/ y están disponibles
+# como comandos globales mediante enlaces simbólicos.
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -32,15 +34,16 @@ fi
 
 clear
 echo "========================================"
-echo "   XONIANT32 - TERMINAL FIJA            "
+echo "   XONIANT32 - TERMINAL FIJA POR DEFECTO"
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
 echo "Este script NO ELIMINA NINGÚN COMPONENTE."
 echo "Solo AÑADE y CONFIGURA:"
-echo "  - Openbox con terminal fija (maximizada, sin bordes, no se cierra)"
+echo "  - Openbox como sesión por defecto"
+echo "  - Terminal fija (maximizada, sin bordes, NO SE PUEDE CERRAR)"
 echo "  - Configuración óptima para mpv y yt-dlp"
 echo "  - Scripts XONI (xoni-install, xoni-update, xoni-help, xoni-menu)"
-echo "  - Las herramientas XONI se instalarán DIRECTAMENTE en ~/ (ej: ~/xonitube)"
+echo "  - Las herramientas XONI se instalan DIRECTAMENTE en ~/ (ej: ~/xonitube)"
 echo ""
 read -p "¿Continuar? (s/n): " CONFIRM
 [[ "$CONFIRM" =~ ^[Ss]$ ]] || error_exit "Operación cancelada."
@@ -62,7 +65,7 @@ apt install -y firmware-atheros firmware-iwlwifi firmware-realtek || warn "Algú
 apt install -y --fix-missing adwaita-icon-theme || warn "Temas GTK opcionales no instalados."
 
 # ============================================
-# 3. CONFIGURAR CONNMAN (opcional)
+# 3. CONFIGURAR CONNMAN
 # ============================================
 info "Configurando connman para WiFi estable..."
 mkdir -p /etc/connman
@@ -156,48 +159,64 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 6. AUTO-LOGIN EN EL GESTOR DE DISPLAY (si existe)
+# 6. FORZAR OPENBOX COMO SESIÓN POR DEFECTO
 # ============================================
-info "Configurando auto-login en el gestor de display..."
+info "Configurando Openbox como sesión por defecto..."
+
+# Crear archivo de sesión para gestores de display
+mkdir -p /usr/share/xsessions
+cat > /usr/share/xsessions/openbox.desktop << 'EOF'
+[Desktop Entry]
+Name=Openbox
+Comment=Openbox Window Manager
+Exec=openbox-session
+Type=Application
+EOF
 
 # LightDM
 if [ -f /etc/lightdm/lightdm.conf ]; then
     mkdir -p /etc/lightdm/lightdm.conf.d
-    cat > /etc/lightdm/lightdm.conf.d/autologin.conf << EOF
+    cat > /etc/lightdm/lightdm.conf.d/50-xoniant32.conf << EOF
 [Seat:*]
 autologin-user=$TARGET_USER
 autologin-session=openbox
+user-session=openbox
 EOF
-    info "LightDM configurado con auto-login."
+    info "LightDM configurado con Openbox por defecto."
 fi
 
 # SDDM
 if [ -f /etc/sddm.conf ]; then
     mkdir -p /etc/sddm.conf.d
-    cat > /etc/sddm.conf.d/autologin.conf << EOF
+    cat > /etc/sddm.conf.d/50-xoniant32.conf << EOF
 [Autologin]
 User=$TARGET_USER
 Session=openbox.desktop
+
+[Theme]
+Current=breeze
 EOF
-    info "SDDM configurado con auto-login."
+    info "SDDM configurado con Openbox por defecto."
 fi
 
 # LXDM
 if [ -f /etc/lxdm/lxdm.conf ]; then
     sed -i "s/^# autologin=.*/autologin=$TARGET_USER/" /etc/lxdm/lxdm.conf
-    info "LXDM configurado con auto-login."
+    sed -i "s/^# session=.*/session=\/usr\/share\/xsessions\/openbox.desktop/" /etc/lxdm/lxdm.conf
+    info "LXDM configurado con Openbox por defecto."
 fi
 
 # SLiM
 if [ -f /etc/slim.conf ]; then
     echo "default_user $TARGET_USER" >> /etc/slim.conf
     echo "auto_login yes" >> /etc/slim.conf
-    info "SLiM configurado con auto-login."
+    echo "session openbox" >> /etc/slim.conf
+    info "SLiM configurado con Openbox por defecto."
 fi
 
-# Si no hay gestor de display, configuramos auto-login en consola + startx
+# Si no hay gestor de display (modo texto), configurar auto-login y startx
 if ! pgrep -x "lightdm|sddm|lxdm|slim" >/dev/null 2>&1; then
-    warn "No se detectó gestor de display. Se configurará auto-login en tty1."
+    warn "No se detectó gestor de display. Se configurará auto-login en tty1 con startx automático."
     mkdir -p /etc/systemd/system/getty@tty1.service.d
     cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
 [Service]
@@ -213,7 +232,7 @@ if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     exit 0
 fi
 EOF
-    info "Auto-login en consola configurado."
+    info "Auto-login en consola configurado con startx automático."
 fi
 
 # ============================================
@@ -352,8 +371,9 @@ ATAJOS:
   Win + u   : Actualizar
   Win + q   : Cerrar sesión
 
-El sistema arranca directamente en modo gráfico con terminal fija.
-La terminal principal es FIJA (no se puede cerrar).
+El sistema arranca directamente en modo gráfico con TERMINAL FIJA.
+NO SE VE EL ESCRITORIO, solo la terminal maximizada sin bordes.
+La terminal principal NO SE PUEDE CERRAR.
 
 REPOSITORIO: https://github.com/XONIDU/xoniant32
 HELP
@@ -404,8 +424,9 @@ Comandos útiles:
   xoni-install  : Instala herramientas XONI directamente en ~/
   sudo connmanctl : Configura la red WiFi
 
-El sistema arranca directamente en modo gráfico con terminal fija.
-La terminal principal es FIJA (no se puede cerrar).
+El sistema arranca directamente en modo gráfico con TERMINAL FIJA.
+NO SE VE EL ESCRITORIO, solo la terminal maximizada sin bordes.
+La terminal principal NO SE PUEDE CERRAR.
 
 Repositorio: https://github.com/XONIDU/xoniant32
 ========================================
@@ -418,9 +439,10 @@ echo "========================================"
 echo "   INSTALACIÓN COMPLETADA               "
 echo "========================================"
 echo ""
-echo "Se ha añadido la terminal fija a tu sistema."
-echo "Tras reiniciar, iniciarás sesión directamente en Openbox"
-echo "con una terminal maximizada (no se puede cerrar)."
+echo "Se ha configurado Openbox con terminal fija como inicio por defecto."
+echo "Tras reiniciar, iniciarás sesión DIRECTAMENTE en la terminal."
+echo "NO VERÁS EL ESCRITORIO, solo la terminal maximizada sin bordes."
+echo "La terminal principal NO SE PUEDE CERRAR."
 echo ""
 echo "Para instalar xonitube: xoni-install xonitube"
 echo ""
