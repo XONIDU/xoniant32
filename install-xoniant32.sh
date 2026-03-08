@@ -1,14 +1,13 @@
 #!/bin/bash
-# install-xoniant32.sh – Terminal gráfica fija como inicio por defecto
+# install-xoniant32.sh – FORZAR TERMINAL FIJA SIN ESCRITORIO
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniant32
 #
-# Este script NO ELIMINA NINGÚN COMPONENTE DEL SISTEMA.
-# Solo configura Openbox como sesión por defecto con terminal fija.
-# Al arrancar, el sistema iniciará DIRECTAMENTE en una terminal maximizada
-# sin mostrar escritorio. La terminal NO SE PUEDE CERRAR.
-# Las herramientas XONI se instalan directamente en ~/ y están disponibles
-# como comandos globales mediante enlaces simbólicos.
+# Este script FUERZA que el sistema inicie DIRECTAMENTE en una terminal
+# gráfica maximizada, SIN MOSTRAR EL ESCRITORIO.
+# - Openbox se inicia pero NO SE VE (solo la terminal)
+# - La terminal NO SE PUEDE CERRAR (sin bordes, sin botón X)
+# - El escritorio queda OCULTO detrás de la terminal
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -34,16 +33,13 @@ fi
 
 clear
 echo "========================================"
-echo "   XONIANT32 - TERMINAL FIJA POR DEFECTO"
+echo "   XONIANT32 - TERMINAL FIJA FORZADA   "
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
-echo "Este script NO ELIMINA NINGÚN COMPONENTE."
-echo "Solo AÑADE y CONFIGURA:"
-echo "  - Openbox como sesión por defecto"
-echo "  - Terminal fija (maximizada, sin bordes, NO SE PUEDE CERRAR)"
-echo "  - Configuración óptima para mpv y yt-dlp"
-echo "  - Scripts XONI (xoni-install, xoni-update, xoni-help, xoni-menu)"
-echo "  - Las herramientas XONI se instalan DIRECTAMENTE en ~/ (ej: ~/xonitube)"
+echo "Este script FUERZA que el sistema inicie"
+echo "DIRECTAMENTE en una terminal gráfica."
+echo "NO SE VERÁ EL ESCRITORIO (solo la terminal)."
+echo "La terminal NO SE PUEDE CERRAR."
 echo ""
 read -p "¿Continuar? (s/n): " CONFIRM
 [[ "$CONFIRM" =~ ^[Ss]$ ]] || error_exit "Operación cancelada."
@@ -103,12 +99,13 @@ cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
 
 # ============================================
-# 5. CONFIGURAR OPENBOX (TERMINAL FIJA)
+# 5. CONFIGURAR OPENBOX (TERMINAL FIJA OCUPANDO TODO)
 # ============================================
-info "Configurando Openbox con terminal fija..."
+info "Configurando Openbox con terminal fija que OCULTA el escritorio..."
 
 mkdir -p "$USER_HOME/.config/openbox"
 
+# Configuración de Openbox - TERMINAL SOBRE EL ESCRITORIO
 cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
@@ -119,6 +116,10 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
       <focus>yes</focus>
       <desktop>all</desktop>
       <layer>above</layer>
+      <position force="yes">
+        <x>0</x>
+        <y>0</y>
+      </position>
     </application>
   </applications>
   <menu><file>~/.config/openbox/menu.xml</file></menu>
@@ -132,6 +133,7 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 </openbox_config>
 EOF
 
+# Menú mínimo
 cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <openbox_menu>
@@ -147,11 +149,13 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 </openbox_menu>
 EOF
 
+# Autostart - TERMINAL PRINCIPAL (ocupa toda la pantalla)
 cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
-# TERMINAL PRINCIPAL (NO SE PUEDE CERRAR)
-urxvt -title "principal" &
+# TERMINAL PRINCIPAL - OCUPA TODA LA PANTALLA (NO SE PUEDE CERRAR)
+urxvt -title "principal" -geometry 200x100 -fg white -bg black &
 EOF
 
+# .xinitrc
 cat > "$USER_HOME/.xinitrc" << 'EOF'
 #!/bin/sh
 exec openbox-session
@@ -159,9 +163,9 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 6. FORZAR OPENBOX COMO SESIÓN POR DEFECTO
+# 6. FORZAR OPENBOX COMO ÚNICA SESIÓN
 # ============================================
-info "Configurando Openbox como sesión por defecto..."
+info "Configurando Openbox como única sesión..."
 
 # Crear archivo de sesión para gestores de display
 mkdir -p /usr/share/xsessions
@@ -173,6 +177,17 @@ Exec=openbox-session
 Type=Application
 EOF
 
+# Deshabilitar otros gestores de ventanas
+if [ -f /usr/share/xsessions/icewm.desktop ]; then
+    mv /usr/share/xsessions/icewm.desktop /usr/share/xsessions/icewm.desktop.bak 2>/dev/null || true
+fi
+if [ -f /usr/share/xsessions/fluxbox.desktop ]; then
+    mv /usr/share/xsessions/fluxbox.desktop /usr/share/xsessions/fluxbox.desktop.bak 2>/dev/null || true
+fi
+if [ -f /usr/share/xsessions/jwm.desktop ]; then
+    mv /usr/share/xsessions/jwm.desktop /usr/share/xsessions/jwm.desktop.bak 2>/dev/null || true
+fi
+
 # LightDM
 if [ -f /etc/lightdm/lightdm.conf ]; then
     mkdir -p /etc/lightdm/lightdm.conf.d
@@ -182,7 +197,7 @@ autologin-user=$TARGET_USER
 autologin-session=openbox
 user-session=openbox
 EOF
-    info "LightDM configurado con Openbox por defecto."
+    info "LightDM configurado."
 fi
 
 # SDDM
@@ -196,14 +211,14 @@ Session=openbox.desktop
 [Theme]
 Current=breeze
 EOF
-    info "SDDM configurado con Openbox por defecto."
+    info "SDDM configurado."
 fi
 
 # LXDM
 if [ -f /etc/lxdm/lxdm.conf ]; then
     sed -i "s/^# autologin=.*/autologin=$TARGET_USER/" /etc/lxdm/lxdm.conf
     sed -i "s/^# session=.*/session=\/usr\/share\/xsessions\/openbox.desktop/" /etc/lxdm/lxdm.conf
-    info "LXDM configurado con Openbox por defecto."
+    info "LXDM configurado."
 fi
 
 # SLiM
@@ -211,10 +226,10 @@ if [ -f /etc/slim.conf ]; then
     echo "default_user $TARGET_USER" >> /etc/slim.conf
     echo "auto_login yes" >> /etc/slim.conf
     echo "session openbox" >> /etc/slim.conf
-    info "SLiM configurado con Openbox por defecto."
+    info "SLiM configurado."
 fi
 
-# Si no hay gestor de display (modo texto), configurar auto-login y startx
+# Si no hay gestor de display (modo texto)
 if ! pgrep -x "lightdm|sddm|lxdm|slim" >/dev/null 2>&1; then
     warn "No se detectó gestor de display. Se configurará auto-login en tty1 con startx automático."
     mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -232,23 +247,27 @@ if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     exit 0
 fi
 EOF
-    info "Auto-login en consola configurado con startx automático."
+    info "Auto-login en consola configurado."
 fi
 
 # ============================================
-# 7. MENSAJE DE BIENVENIDA EN .bashrc
+# 7. MENSAJE DE BIENVENIDA
 # ============================================
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
 # Mensaje de bienvenida
 echo "========================================"
-echo "   XONIANT32 - by Darian Alberto Camacho Salas"
+echo "   XONIANT32 - TERMINAL FIJA            "
+echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
+echo "La terminal principal OCUPA TODA LA PANTALLA."
+echo "NO SE VE EL ESCRITORIO."
+echo ""
 echo "Comandos útiles:"
 echo "  xoni-help     : Muestra esta ayuda"
-echo "  xoni-menu     : Menú interactivo"
+echo "  xoni-menu     : Menú interactivo (Win+x)"
 echo "  xoni-update   : Actualiza xoniant32"
-echo "  xoni-install  : Instala herramientas XONI directamente en ~/"
+echo "  xoni-install  : Instala herramientas XONI en ~/"
 echo "  sudo connmanctl : Configura la red WiFi"
 echo "========================================"
 EOF
@@ -279,20 +298,20 @@ if [ -n "$1" ]; then
         git clone "$REPO_BASE/$TOOL.git"
     fi
     
-    # Buscar el archivo principal y crear enlace simbólico en /usr/local/bin
+    # Buscar el archivo principal
     if [ -f "$TOOL/start.py" ]; then
         echo "Creando enlace simbólico en /usr/local/bin/$TOOL (necesita sudo)"
         sudo ln -sf "$HOME/$TOOL/start.py" "/usr/local/bin/$TOOL"
         sudo chmod +x "/usr/local/bin/$TOOL"
-        echo "[OK] $TOOL disponible como comando global (enlace a ~/$TOOL/start.py)"
+        echo "[OK] $TOOL disponible como comando global"
     elif [ -f "$TOOL/$TOOL.py" ]; then
         sudo ln -sf "$HOME/$TOOL/$TOOL.py" "/usr/local/bin/$TOOL"
         sudo chmod +x "/usr/local/bin/$TOOL"
-        echo "[OK] $TOOL disponible como comando global (enlace a ~/$TOOL/$TOOL.py)"
+        echo "[OK] $TOOL disponible como comando global"
     elif [ -f "$TOOL/$TOOL.sh" ]; then
         sudo ln -sf "$HOME/$TOOL/$TOOL.sh" "/usr/local/bin/$TOOL"
         sudo chmod +x "/usr/local/bin/$TOOL"
-        echo "[OK] $TOOL disponible como comando global (enlace a ~/$TOOL/$TOOL.sh)"
+        echo "[OK] $TOOL disponible como comando global"
     else
         echo "[AVISO] No se encontró archivo principal, pero el repositorio está en ~/$TOOL"
     fi
@@ -359,10 +378,7 @@ COMANDOS:
   xoni-install <herramienta>   : Instala herramientas XONI en ~/
 
 HERRAMIENTAS DISPONIBLES:
-  xonitube, xonigraf, xonichat, xonimail, xonicar, xoniclus, xoniconver,
-  xonidate, xonidal, xonidip, xoniencript, xonihelp, xonilab, xoniclient,
-  xoniserver, xoniterm, xonifs, xonigrep, xonisearch, xonicrypt,
-  xonidecode, xonicron, xonisync
+  xonitube, xonigraf, xonichat, xonimail, ...
 
 ATAJOS:
   Win + x   : Menú principal
@@ -371,8 +387,9 @@ ATAJOS:
   Win + u   : Actualizar
   Win + q   : Cerrar sesión
 
-El sistema arranca directamente en modo gráfico con TERMINAL FIJA.
-NO SE VE EL ESCRITORIO, solo la terminal maximizada sin bordes.
+El sistema arranca DIRECTAMENTE en MODO GRÁFICO.
+La terminal principal OCUPA TODA LA PANTALLA.
+NO SE VE EL ESCRITORIO.
 La terminal principal NO SE PUEDE CERRAR.
 
 REPOSITORIO: https://github.com/XONIDU/xoniant32
@@ -415,19 +432,15 @@ chmod +x /usr/local/bin/xoni-*
 # ============================================
 cat > /etc/motd << 'EOF'
 ========================================
-   XONIANT32 - by Darian Alberto Camacho Salas
+   XONIANT32 - TERMINAL FIJA
+   by Darian Alberto Camacho Salas
 ========================================
-Comandos útiles:
-  xoni-help     : Muestra esta ayuda
-  xoni-menu     : Menú interactivo
-  xoni-update   : Actualiza scripts y herramientas
-  xoni-install  : Instala herramientas XONI directamente en ~/
-  sudo connmanctl : Configura la red WiFi
-
-El sistema arranca directamente en modo gráfico con TERMINAL FIJA.
-NO SE VE EL ESCRITORIO, solo la terminal maximizada sin bordes.
+El sistema arranca DIRECTAMENTE en MODO GRÁFICO.
+La terminal principal OCUPA TODA LA PANTALLA.
+NO SE VE EL ESCRITORIO.
 La terminal principal NO SE PUEDE CERRAR.
 
+Comandos: xoni-help
 Repositorio: https://github.com/XONIDU/xoniant32
 ========================================
 EOF
@@ -439,10 +452,9 @@ echo "========================================"
 echo "   INSTALACIÓN COMPLETADA               "
 echo "========================================"
 echo ""
-echo "Se ha configurado Openbox con terminal fija como inicio por defecto."
-echo "Tras reiniciar, iniciarás sesión DIRECTAMENTE en la terminal."
-echo "NO VERÁS EL ESCRITORIO, solo la terminal maximizada sin bordes."
-echo "La terminal principal NO SE PUEDE CERRAR."
+echo "Se ha FORZADO la terminal fija."
+echo "Al reiniciar, verás SOLO LA TERMINAL ocupando toda la pantalla."
+echo "NO SE VERÁ EL ESCRITORIO."
 echo ""
 echo "Para instalar xonitube: xoni-install xonitube"
 echo ""
