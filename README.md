@@ -1,55 +1,58 @@
-# XONIANT32 v4.2.0
+# XONIANT32 ULTIMATE
 ### by Darian Alberto Camacho Salas
 
 ---
 
 ## 📋 Descripción
 
-**XONIANT32** es una transformación ultra minimalista de **antiX Linux** (Debian Stable de 32 bits) que elimina todo lo innecesario y deja solo lo esencial para ejecutar herramientas XONI y tener un entorno gráfico liviano pero funcional.
+**XONIANT32 ULTIMATE** es una transformación de **antiX Linux** (Debian Stable de 32 bits) que configura el sistema para que inicie directamente en una **terminal gráfica fija**, manteniendo **TODOS los controladores y paquetes originales** de antiX. Ideal para hardware antiguo (como ASUS Eee PC 900) con máxima compatibilidad para reproducción de video y herramientas XONI.
 
-El script `install-xoniant32.sh` realiza una purga masiva de paquetes y configura el sistema para que quede únicamente con:
+### Características principales
 
-- **Openbox** como gestor de ventanas (mínimo)
-- **Terminal fija** (rxvt-unicode) maximizada y sin bordes (no se puede cerrar)
-- **ALSA** para audio
-- **Connman** para WiFi (nativo de antiX)
-- **Scripts XONI**: `xoni-install`, `xoni-update`, `xoni-help`, `xoni-menu`
-- **Nada más**: sin escritorios, sin barras, sin fondos, sin gestores de display.
+- **NO elimina ningún paquete** – Conserva TODOS los controladores de video, audio, WiFi, Bluetooth, impresión, etc.
+- **Terminal principal FIJA** – Ocupa toda la pantalla, sin bordes, NO SE PUEDE CERRAR.
+- **Ventanas emergentes SUPERPUESTAS** – Las nuevas terminales y reproductores (mpv) se ven **ENCIMA** de la principal.
+- **Atajos de teclado COMPLETOS** – Alt+Tab, Ctrl+Alt+T, Alt+F4, Alt+F10, Win+x, Win+q.
+- **Soporte de ratón** – Seleccionar texto copia automáticamente; click derecho pega.
+- **Copiar/Pegar con teclado** – Ctrl+Shift+C/V, Ctrl+Insert/Shift+Insert.
+- **Sin escritorio visible** – El sistema arranca directamente en la terminal, sin barras ni menús.
+- **Compatible con XoniTube v5.5** – Reproducción de YouTube optimizada.
+- **Scripts XONI** – Instalación automática de herramientas en `~/` (xonitube, xonigraf, xonichat, etc.).
 
 ---
 
 ## ⚠️ Advertencia
 
-Este script está diseñado para **fines educativos y personales**. Realiza una purga masiva de paquetes en tu sistema antiX instalado. **Asegúrate de tener una copia de seguridad de tus datos importantes antes de ejecutarlo**. El autor no se responsabiliza del uso que se le dé.
+Este script **NO ELIMINA NINGÚN PAQUETE** del sistema antiX original. Solo **AÑADE y CONFIGURA** la terminal fija y los atajos. Es seguro para tu sistema y conserva todas las funcionalidades originales.
 
 ---
 
 ## 📥 Requisitos previos
 
-- Tener **antiX Linux 32 bits ya instalado** en tu disco duro.
-- Conexión a internet (cable o WiFi).
+- Tener **antiX Linux 32 bits ya instalado** en tu disco duro (o ejecutarse desde live USB con persistencia).
+- Conexión a internet (cable o WiFi) – opcional, solo si quieres instalar herramientas XONI después.
 - Ejecutar el script con permisos de superusuario (`sudo`).
 
 ---
 
 ## 🚀 Instalación (desde antiX ya instalado)
 
-Puedes descargar el script de purga usando cualquiera de estos métodos:
+Puedes descargar el script de instalación usando cualquiera de estos métodos:
 
 ### Opción 1: con `wget`
 
 ```bash
-wget -O install-xoniant32.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
-chmod +x install-xoniant32.sh
-sudo ./install-xoniant32.sh
+wget -O install-xoniant32-ultimate.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32-ultimate.sh
+chmod +x install-xoniant32-ultimate.sh
+sudo ./install-xoniant32-ultimate.sh
 ```
 
 ### Opción 2: con `curl`
 
 ```bash
-curl -L -o install-xoniant32.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
-chmod +x install-xoniant32.sh
-sudo ./install-xoniant32.sh
+curl -L -o install-xoniant32-ultimate.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32-ultimate.sh
+chmod +x install-xoniant32-ultimate.sh
+sudo ./install-xoniant32-ultimate.sh
 ```
 
 ### Opción 3: con `git` (clonando el repositorio)
@@ -57,19 +60,48 @@ sudo ./install-xoniant32.sh
 ```bash
 git clone https://github.com/XONIDU/xoniant32.git
 cd xoniant32
-chmod +x install-xoniant32.sh
-sudo ./install-xoniant32.sh
+chmod +x install-xoniant32-ultimate.sh
+sudo ./install-xoniant32-ultimate.sh
 ```
 
-El script te guiará interactivamente, pidiendo confirmación antes de comenzar la purga.
+El script te pedirá confirmación una vez y luego hará todo automáticamente.
 
 ---
 
-## 🎯 Primer inicio después de la purga
+## 🎯 Primer inicio después de la instalación
 
 1. Reinicia el sistema: `sudo reboot`
-2. Inicia sesión con tu usuario habitual (la contraseña no cambia).
-3. Automáticamente se iniciará el entorno gráfico con una terminal fija (sin bordes, maximizada).
+2. Iniciará **directamente en la terminal gráfica fija** (pantalla negra con terminal).
+3. La terminal principal **NO SE PUEDE CERRAR** (no tiene botón X ni responde a Alt+F4).
+4. Usa los atajos de teclado para operar el sistema.
+
+---
+
+## ⌨️ Atajos de teclado
+
+| Tecla | Acción |
+|-------|--------|
+| `Alt+Tab` | Cambiar entre ventanas emergentes |
+| `Alt+F4` | Cerrar ventana actual (excepto la principal) |
+| `Alt+F10` | Maximizar/restaurar ventana |
+| `Win+↑` | Maximizar ventana |
+| `Ctrl+Alt+T` | Abrir nueva terminal (emergente, encima de la principal) |
+| `Win+x` | Abrir menú principal |
+| `Win+q` | Cerrar sesión (única forma de salir) |
+| `Ctrl+Alt+←/→` | Cambiar escritorio virtual |
+
+---
+
+## 🖱️ Ratón y portapapeles
+
+| Acción | Resultado |
+|--------|-----------|
+| **Seleccionar texto** | Copia automáticamente al portapapeles |
+| **Click derecho** | Pega el texto copiado |
+| `Ctrl+Shift+C` | Copiar selección |
+| `Ctrl+Shift+V` | Pegar |
+| `Ctrl+Insert` | Copiar |
+| `Shift+Insert` | Pegar |
 
 ---
 
@@ -77,10 +109,20 @@ El script te guiará interactivamente, pidiendo confirmación antes de comenzar 
 
 | Comando | Descripción |
 |---------|-------------|
-| `xoni-install <herramienta>` | Instala una herramienta XONI desde GitHub (ej: `xoni-install xonitube`). |
-| `xoni-update` | Actualiza todo el sistema xoniant32 desde el repositorio GitHub. |
+| `xoni-install <herramienta>` | Instala una herramienta XONI en `~/<herramienta>` y crea el comando global. |
+| `xoni-update` | Actualiza los scripts del sistema y las herramientas en `~/`. |
 | `xoni-help` | Muestra esta ayuda completa. |
 | `xoni-menu` | Abre un menú interactivo con opciones rápidas. |
+
+### Herramientas disponibles (desde XONIDU)
+
+```bash
+xoni-install xonitube    # Buscador y reproductor de YouTube
+xoni-install xonigraf    # Graficador matemático
+xoni-install xonichat    # Chat con IA (Gemini)
+xoni-install xonimail    # Cliente de correo
+# ... y más en https://github.com/XONIDU
+```
 
 ---
 
@@ -115,17 +157,6 @@ Usa las flechas para subir/bajar el volumen y `Esc` para salir.
 
 ---
 
-## 📋 Estructura del repositorio
-
-```
-xoniant32/
-├── install-xoniant32.sh   # Script principal de purga y configuración
-├── README.md              # Este archivo
-└── .gitignore             # Archivos ignorados
-```
-
----
-
 ## 🔄 Actualización del sistema
 
 Para mantener tus scripts XONI actualizados, ejecuta:
@@ -134,15 +165,62 @@ Para mantener tus scripts XONI actualizados, ejecuta:
 xoni-update
 ```
 
-Esto clonará/actualizará el repositorio y sincronizará los cambios.
+Esto clonará/actualizará el repositorio principal y sincronizará los cambios.
 
 ---
 
 ## 💻 Hardware soportado
 
+### Mínimo
 - **Procesador**: 32 bits (i386)
-- **RAM**: 512 MB mínimo (recomendado 1 GB)
-- **Gráficos**: Cualquier chip compatible con Xorg (controlador fbdev)
+- **RAM**: 512 MB (recomendado 1 GB)
+- **Almacenamiento**: 8 GB
+- **Gráficos**: Cualquier chip compatible con Xorg (todos los controladores originales se conservan)
+
+### Probado en
+- **ASUS Eee PC 900** (Intel Celeron M 900MHz, 1GB RAM, GMA 900)
+- **ThinkPad X60** (Intel Core Duo, 32 bits)
+- **VirtualBox / QEMU**
+
+---
+
+## 🛠️ Solución de problemas comunes
+
+### ❌ Error de conexión WiFi
+```bash
+sudo sv restart connman   # antiX usa runit
+sudo connmanctl
+# Vuelve a conectar
+```
+
+### ❌ No se ven las ventanas emergentes
+Verifica que la terminal principal tenga `layer>below` y las emergentes `layer>above` en `~/.config/openbox/rc.xml`. El script ya lo configura automáticamente.
+
+### ❌ El video de XoniTube no se ve
+Este script conserva TODOS los controladores originales, por lo que mpv debería funcionar sin problemas. Si hay problemas, prueba:
+
+```bash
+mpv --vo=x11 --ao=alsa https://youtu.be/...
+```
+
+### ❌ La terminal principal se cerró accidentalmente
+Si lograste cerrarla (muy difícil), reinicia el gestor de display:
+
+```bash
+sudo systemctl restart lightdm   # o sddm/lxdm/slim
+```
+
+---
+
+## 📋 Estructura del repositorio
+
+```
+xoniant32/
+├── install-xoniant32-ultimate.sh   # Script principal de instalación (versión Ultimate)
+├── install-xoniant32.sh            # Script original (con purga de paquetes)
+├── README.md                       # Este archivo
+└── .gitignore                      # Archivos ignorados
+```
 
 ---
 
@@ -160,4 +238,25 @@ Esto clonará/actualizará el repositorio y sincronizará los cambios.
 - [Repositorio XONIANT32](https://github.com/XONIDU/xoniant32)
 - [antiX Linux oficial](https://antixlinux.com/)
 - [Foro de antiX](https://www.antixforum.com/)
+
+---
+
+⭐ **Si te gusta el proyecto, no olvides dejar una estrella en GitHub** ⭐
+```
+
+---
+
+## 📝 **Resumen de cambios en el README**
+
+| Sección | Cambio |
+|---------|--------|
+| **Título** | XONIANT32 ULTIMATE |
+| **Descripción** | Aclarado que NO elimina paquetes, conserva TODOS los controladores |
+| **Advertencia** | Cambiada para reflejar que es seguro y no elimina nada |
+| **Instalación** | Añadida opción con `curl` y `git` |
+| **Atajos** | Incluidos todos los nuevos (Alt+F10, Win+↑, etc.) |
+| **Ratón** | Nueva sección con explicación de copiar/pegar |
+| **Comandos XONI** | Misma estructura, actualizado el nombre del script |
+| **Estructura** | Aclarado que hay dos versiones (original y Ultimate) |
+
 
