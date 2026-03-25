@@ -1,14 +1,14 @@
 #!/bin/bash
-# install-xoniant32-ultimate.sh – Terminal fija (SIN ELIMINAR PAQUETES)
+# install-xoniant32-ultimate.sh – Terminal fija que OCULTA EL ESCRITORIO
 # Autor: Darian Alberto Camacho Salas
 #
 # Este script:
-# 1. NO ELIMINA NINGÚN PAQUETE (conserva todo el sistema antiX original)
-# 2. CONFIGURA Openbox con terminal fija que OCULTA EL ESCRITORIO
-# 3. PERMITE que ventanas emergentes (mpv, nuevas terminales) se vean SOBRE la terminal
-# 4. BLOQUEA el cierre de la terminal principal (sin botón X, sin Alt+F4)
-# 5. AÑADE SOPORTE COMPLETO de ratón y teclado
-# 6. Optimizado para XoniTube v5.5 (tamaño de ventana 640x360)
+# 1. NO ELIMINA NINGÚN PAQUETE (conserva todo antiX original)
+# 2. CONFIGURA Openbox como única sesión disponible
+# 3. FUERZA auto-login con Openbox como sesión por defecto
+# 4. Configura terminal principal que ocupa toda la pantalla (sin bordes, no se cierra)
+# 5. Ventanas emergentes (mpv, nuevas terminales) se ven ENCIMA
+# 6. Añade atajos completos y soporte de ratón para copiar/pegar
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -40,11 +40,11 @@ echo "========================================"
 echo "Este script NO ELIMINA NINGÚN PAQUETE."
 echo "Conserva TODO el sistema antiX original."
 echo ""
-echo "SOLO CONFIGURA:"
-echo "  ✓ Openbox con terminal fija"
-echo "  ✓ Click derecho para PEGAR"
-echo "  ✓ Atajos: Ctrl+Shift+C/V, Alt+Tab, Alt+F4, Win+x, Win+q"
+echo "FORZARÁ Openbox como única sesión:"
+echo "  ✓ Terminal principal que OCULTA el escritorio"
+echo "  ✓ Auto-login directo a Openbox"
 echo "  ✓ Ventanas emergentes sobre la terminal"
+echo "  ✓ Atajos completos + ratón copiar/pegar"
 echo ""
 echo "INICIARÁ DIRECTAMENTE EN TERMINAL (sin escritorio)"
 echo "========================================"
@@ -53,7 +53,7 @@ read -p "¿Continuar? (s/n): " CONFIRM
 [[ "$CONFIRM" =~ ^[Ss]$ ]] || error_exit "Operación cancelada."
 
 # ============================================
-# 1. ACTUALIZAR REPOSITORIOS (sin eliminar nada)
+# 1. ACTUALIZAR REPOSITORIOS
 # ============================================
 info "Actualizando repositorios..."
 apt update
@@ -65,12 +65,11 @@ info "Instalando paquetes adicionales (si no están)..."
 apt install -y openbox obconf rxvt-unicode mpv yt-dlp ffmpeg xclip xsel connman
 
 # ============================================
-# 3. CONFIGURAR MPV (optimizado para 1GB RAM)
+# 3. CONFIGURAR MPV
 # ============================================
-info "Configurando mpv para bajo consumo de recursos..."
+info "Configurando mpv..."
 mkdir -p /etc/mpv
 cat > /etc/mpv/mpv.conf << 'EOF'
-# Configuración ULTIMATE para mpv (bajo consumo)
 vo=x11
 ao=alsa
 cache=yes
@@ -89,7 +88,6 @@ ontop
 msg-level=all=error
 EOF
 
-# Configuración para el usuario
 TARGET_USER="${SUDO_USER:-$USER}"
 USER_HOME="/home/$TARGET_USER"
 mkdir -p "$USER_HOME/.config/mpv"
@@ -106,11 +104,8 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.urxvt"
 
 cat > "$USER_HOME/.urxvt/ext/clipboard-paste-on-right-click" << 'EOF'
 #! perl
-# clipboard-paste-on-right-click - Extensión para urxvt que permite pegar con click derecho
-
 sub on_button_press {
     my ($self, $event) = @_;
-
     if ($event->{button} == 3 && $event->{state} == 0) {
         my $clipboard = `xclip -selection clipboard -o 2>/dev/null`;
         if ($clipboard) {
@@ -125,7 +120,6 @@ EOF
 chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.urxvt/ext/clipboard-paste-on-right-click"
 
 cat > "$USER_HOME/.Xresources" << 'EOF'
-! Configuración URxvt para Xoniant32 Ultimate
 URxvt.font: xft:monospace:size=10
 URxvt.background: black
 URxvt.foreground: white
@@ -139,15 +133,14 @@ URxvt.keysym.Shift-Insert: eval:paste_clipboard
 URxvt.iso14755: false
 URxvt.iso14755_52: false
 URxvt.selectStyle: word
-URxvt.letterSpace: 0
 EOF
 
 chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources"
 
 # ============================================
-# 5. CONFIGURAR OPENBOX (TERMINAL FIJA + ATAJOS COMPLETOS)
+# 5. CONFIGURAR OPENBOX (TERMINAL FIJA + ATAJOS)
 # ============================================
-info "Configurando Openbox con terminal fija y atajos completos..."
+info "Configurando Openbox con terminal fija..."
 
 mkdir -p "$USER_HOME/.config/openbox"
 
@@ -155,33 +148,22 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config>
   <applications>
-    <!-- Terminal principal - NO SE PUEDE CERRAR -->
     <application class="URxvt" name="urxvt" title="principal">
       <decor>no</decor>
       <maximized>yes</maximized>
       <focus>yes</focus>
       <desktop>all</desktop>
       <layer>below</layer>
-      <position force="yes">
-        <x>0</x>
-        <y>0</y>
-      </position>
-      <focus>no</focus>
+      <position force="yes"><x>0</x><y>0</y></position>
     </application>
-    
-    <!-- Ventanas emergentes - SIEMPRE ENCIMA -->
     <application class="URxvt" name="urxvt" title="!principal">
       <layer>above</layer>
-      <focus>yes</focus>
     </application>
     <application class="Mpv">
       <layer>above</layer>
-      <focus>yes</focus>
     </application>
   </applications>
-  
   <menu><file>~/.config/openbox/menu.xml</file></menu>
-  
   <keyboard>
     <keybind key="A-Tab"><action name="NextWindow"/></keybind>
     <keybind key="A-S-Tab"><action name="PreviousWindow"/></keybind>
@@ -193,10 +175,7 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
     <keybind key="C-A-t"><action name="Execute"><command>urxvt</command></action></keybind>
     <keybind key="W-h"><action name="Execute"><command>xoni-help</command></action></keybind>
     <keybind key="W-q"><action name="Exit"/></keybind>
-    <keybind key="C-A-Left"><action name="GoToDesktop"><to>left</to></action></keybind>
-    <keybind key="C-A-Right"><action name="GoToDesktop"><to>right</to></action></keybind>
   </keyboard>
-  
   <mouse>
     <context name="Root">
       <mousebind button="Right" action="Press">
@@ -233,7 +212,7 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 EOF
 
 cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
-# TERMINAL PRINCIPAL - OCUPA TODA LA PANTALLA (NO SE PUEDE CERRAR)
+# TERMINAL PRINCIPAL (NO SE PUEDE CERRAR)
 urxvt -title "principal" -fg white -bg black &
 
 # Cargar configuración Xresources
@@ -247,9 +226,9 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 6. CONFIGURAR CONNMAN (WiFi)
+# 6. CONFIGURAR CONNMAN
 # ============================================
-info "Configurando connman (gestor de red liviano)..."
+info "Configurando connman..."
 mkdir -p /etc/connman
 cat > /etc/connman/main.conf << 'EOF'
 [General]
@@ -260,7 +239,72 @@ EOF
 systemctl restart connman || sv restart connman || true
 
 # ============================================
-# 7. CREAR SCRIPTS XONI
+# 7. FORZAR OPENBOX COMO ÚNICA SESIÓN
+# ============================================
+info "Forzando Openbox como única sesión (ocultando otros escritorios)..."
+
+# Crear archivo de sesión Openbox
+mkdir -p /usr/share/xsessions
+cat > /usr/share/xsessions/openbox.desktop << 'EOF'
+[Desktop Entry]
+Name=Openbox
+Comment=Openbox Window Manager
+Exec=openbox-session
+Type=Application
+EOF
+
+# Desactivar otros gestores de ventanas (renombrando sus archivos .desktop)
+for wm in icewm fluxbox jwm; do
+    if [ -f "/usr/share/xsessions/$wm.desktop" ]; then
+        mv "/usr/share/xsessions/$wm.desktop" "/usr/share/xsessions/$wm.desktop.disabled" 2>/dev/null || true
+    fi
+done
+
+# ============================================
+# 8. CONFIGURAR AUTO-LOGIN EN EL GESTOR DE DISPLAY
+# ============================================
+info "Configurando auto-login con Openbox..."
+
+# LightDM
+if [ -f /etc/lightdm/lightdm.conf ]; then
+    mkdir -p /etc/lightdm/lightdm.conf.d
+    cat > /etc/lightdm/lightdm.conf.d/50-xoniant32.conf << EOF
+[Seat:*]
+autologin-user=$TARGET_USER
+autologin-session=openbox
+user-session=openbox
+EOF
+    info "LightDM configurado con auto-login a Openbox."
+fi
+
+# SDDM
+if [ -f /etc/sddm.conf ]; then
+    mkdir -p /etc/sddm.conf.d
+    cat > /etc/sddm.conf.d/50-xoniant32.conf << EOF
+[Autologin]
+User=$TARGET_USER
+Session=openbox.desktop
+EOF
+    info "SDDM configurado con auto-login a Openbox."
+fi
+
+# LXDM
+if [ -f /etc/lxdm/lxdm.conf ]; then
+    sed -i "s/^# autologin=.*/autologin=$TARGET_USER/" /etc/lxdm/lxdm.conf
+    sed -i "s/^# session=.*/session=\/usr\/share\/xsessions\/openbox.desktop/" /etc/lxdm/lxdm.conf
+    info "LXDM configurado con auto-login a Openbox."
+fi
+
+# SLiM
+if [ -f /etc/slim.conf ]; then
+    echo "default_user $TARGET_USER" >> /etc/slim.conf
+    echo "auto_login yes" >> /etc/slim.conf
+    echo "session openbox" >> /etc/slim.conf
+    info "SLiM configurado con auto-login a Openbox."
+fi
+
+# ============================================
+# 9. CREAR SCRIPTS XONI
 # ============================================
 info "Creando scripts XONI..."
 
@@ -320,7 +364,7 @@ COMANDOS:
   xoni-install  : Instalar herramientas
   sudo connmanctl : Configurar WiFi
 
-ATAJOS DE TECLADO:
+ATAJOS:
   Alt+Tab       : Cambiar ventana
   Alt+F4        : Cerrar ventana
   Alt+F10       : Maximizar
@@ -330,15 +374,11 @@ ATAJOS DE TECLADO:
   Win+q         : Cerrar sesión
 
 RATÓN:
-  Seleccionar texto : Copia automáticamente
-  Click derecho     : Pegar texto
-
-COPIAR/PEGAR:
-  Ctrl+Shift+C/V, Ctrl+Insert/Shift+Insert
+  Seleccionar texto : Copia
+  Click derecho     : Pegar
 
 ✓ Terminal principal NO SE PUEDE CERRAR
 ✓ Ventanas emergentes se ven ENCIMA
-✓ Sistema conserva TODOS los controladores originales
 
 Repositorio: https://github.com/XONIDU/xoniant32
 HELP
@@ -365,23 +405,22 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources" "$USER_HOME/.urxvt"
 
 # ============================================
-# 8. FINALIZACIÓN
+# 10. FINALIZACIÓN
 # ============================================
 echo "========================================"
 echo "   INSTALACIÓN ULTIMATE COMPLETADA      "
 echo "========================================"
 echo ""
-echo "✅ CARACTERÍSTICAS:"
-echo "   ✓ Terminal principal NO SE PUEDE CERRAR"
-echo "   ✓ Ventanas emergentes se ven ENCIMA"
-echo "   ✓ Click derecho pega, selección copia"
-echo "   ✓ Atajos completos de teclado"
-echo "   ✓ NO se eliminó NINGÚN paquete del sistema"
-echo "   ✓ Conserva TODOS los controladores originales"
+echo "✅ FORZADO Openbox como única sesión"
+echo "✅ Auto-login configurado directamente a Openbox"
+echo "✅ Terminal principal OCULTA el escritorio (layer=below)"
+echo "✅ Ventanas emergentes se ven ENCIMA (layer=above)"
+echo "✅ Atajos completos + ratón copiar/pegar"
+echo "✅ NO se eliminó ningún paquete del sistema"
 echo ""
-echo "✅ Para instalar xonitube:  xoni-install xonitube"
-echo "✅ Para abrir el menú:        xoni-menu"
-echo "✅ Para ayuda:                xoni-help"
+echo "▶ Para instalar xonitube:  xoni-install xonitube"
+echo "▶ Para abrir el menú:        xoni-menu"
+echo "▶ Para ayuda:                xoni-help"
 echo ""
 echo "Reinicia ahora: sudo reboot"
 echo ""
