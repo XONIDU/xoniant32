@@ -1,14 +1,13 @@
 #!/bin/bash
-# install-xoniant32-ultimate.sh – Terminal fija que OCULTA EL ESCRITORIO
+# install-xoniant32-ultimate.sh – Terminal fija con inicio directo garantizado
 # Autor: Darian Alberto Camacho Salas
 #
-# Este script:
-# 1. NO ELIMINA NINGÚN PAQUETE (conserva todo antiX original)
-# 2. CONFIGURA Openbox como única sesión disponible
-# 3. FUERZA auto-login con Openbox como sesión por defecto
-# 4. Configura terminal principal que ocupa toda la pantalla (sin bordes, no se cierra)
-# 5. Ventanas emergentes (mpv, nuevas terminales) se ven ENCIMA
-# 6. Añade atajos completos y soporte de ratón para copiar/pegar
+# Mejoras en esta versión:
+# 1. Verificación más robusta del gestor de display
+# 2. Configuración de sesión por defecto en todos los niveles
+# 3. Eliminación de cualquier intento de iniciar escritorio
+# 4. Forzado de Openbox incluso en fallback de consola
+# 5. Mayor compatibilidad con diferentes configuraciones de antiX
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -40,7 +39,7 @@ echo "========================================"
 echo "Este script NO ELIMINA NINGÚN PAQUETE."
 echo "Conserva TODO el sistema antiX original."
 echo ""
-echo "FORZARÁ Openbox como única sesión:"
+echo "GARANTIZA inicio directo en terminal:"
 echo "  ✓ Terminal principal que OCULTA el escritorio"
 echo "  ✓ Auto-login directo a Openbox"
 echo "  ✓ Ventanas emergentes sobre la terminal"
@@ -59,7 +58,7 @@ info "Actualizando repositorios..."
 apt update
 
 # ============================================
-# 2. INSTALAR PAQUETES ADICIONALES (solo si no están)
+# 2. INSTALAR PAQUETES ADICIONALES
 # ============================================
 info "Instalando paquetes adicionales (si no están)..."
 apt install -y openbox obconf rxvt-unicode mpv yt-dlp ffmpeg xclip xsel connman
@@ -253,7 +252,7 @@ Exec=openbox-session
 Type=Application
 EOF
 
-# Desactivar otros gestores de ventanas (renombrando sus archivos .desktop)
+# Desactivar otros gestores de ventanas
 for wm in icewm fluxbox jwm; do
     if [ -f "/usr/share/xsessions/$wm.desktop" ]; then
         mv "/usr/share/xsessions/$wm.desktop" "/usr/share/xsessions/$wm.desktop.disabled" 2>/dev/null || true
@@ -304,7 +303,43 @@ if [ -f /etc/slim.conf ]; then
 fi
 
 # ============================================
-# 9. CREAR SCRIPTS XONI
+# 9. CONFIGURACIÓN DE RESPUESTA (fallback si no hay gestor de display)
+# ============================================
+# Verificar si hay algún gestor de display activo
+DM_FOUND=false
+for dm in lightdm sddm lxdm slim; do
+    if systemctl list-unit-files | grep -q "$dm.service" 2>/dev/null; then
+        DM_FOUND=true
+        break
+    fi
+done
+
+if [ "$DM_FOUND" = false ]; then
+    warn "No se detectó gestor de display. Configurando auto-login en consola..."
+    
+    # Configurar auto-login en tty1
+    mkdir -p /etc/systemd/system/getty@tty1.service.d
+    cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $TARGET_USER --noclear %I 38400 linux
+EOF
+    
+    # Añadir startx automático al .bashrc
+    cat >> "$USER_HOME/.bashrc" << 'EOF'
+
+# Iniciar X automáticamente en tty1 si no está corriendo
+if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    startx
+    exit 0
+fi
+EOF
+    chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.bashrc"
+    info "Auto-login en consola con startx automático configurado."
+fi
+
+# ============================================
+# 10. CREAR SCRIPTS XONI
 # ============================================
 info "Creando scripts XONI..."
 
@@ -388,6 +423,8 @@ chmod +x /usr/local/bin/xoni-*
 
 # Mensaje de bienvenida
 cat >> "$USER_HOME/.bashrc" << 'EOF'
+
+# Mensaje de bienvenida
 echo "========================================"
 echo "   XONIANT32 ULTIMATE - TERMINAL FIJA"
 echo "   by Darian Alberto Camacho Salas"
@@ -405,18 +442,20 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources" "$USER_HOME/.urxvt"
 
 # ============================================
-# 10. FINALIZACIÓN
+# 11. FINALIZACIÓN
 # ============================================
 echo "========================================"
 echo "   INSTALACIÓN ULTIMATE COMPLETADA      "
 echo "========================================"
 echo ""
-echo "✅ FORZADO Openbox como única sesión"
-echo "✅ Auto-login configurado directamente a Openbox"
-echo "✅ Terminal principal OCULTA el escritorio (layer=below)"
-echo "✅ Ventanas emergentes se ven ENCIMA (layer=above)"
-echo "✅ Atajos completos + ratón copiar/pegar"
-echo "✅ NO se eliminó ningún paquete del sistema"
+echo "✅ MEJORAS APLICADAS:"
+echo "   ✓ Forzado Openbox como única sesión"
+echo "   ✓ Auto-login configurado en gestor de display"
+echo "   ✓ Fallback a consola con startx automático"
+echo "   ✓ Terminal principal OCULTA el escritorio"
+echo "   ✓ Ventanas emergentes se ven ENCIMA"
+echo "   ✓ Atajos completos + ratón copiar/pegar"
+echo "   ✓ NO se eliminó ningún paquete"
 echo ""
 echo "▶ Para instalar xonitube:  xoni-install xonitube"
 echo "▶ Para abrir el menú:        xoni-menu"
