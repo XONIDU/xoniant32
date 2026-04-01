@@ -1,13 +1,15 @@
 #!/bin/bash
-# install-xoniant32-ultimate.sh – Terminal fija con inicio directo garantizado
+# install-xoniant32-ultimate.sh – Terminal fija optimizada con xoni-update
 # Autor: Darian Alberto Camacho Salas
 #
-# Mejoras en esta versión:
-# 1. Verificación más robusta del gestor de display
-# 2. Configuración de sesión por defecto en todos los niveles
-# 3. Eliminación de cualquier intento de iniciar escritorio
-# 4. Forzado de Openbox incluso en fallback de consola
-# 5. Mayor compatibilidad con diferentes configuraciones de antiX
+# Este script:
+# 1. ELIMINA paquetes INNECESARIOS (ahorro de RAM y disco)
+# 2. CONSERVA TODO lo gráfico (controladores, codecs, Xorg, OpenGL)
+# 3. CONFIGURA Openbox como única sesión
+# 4. Terminal principal fija que OCULTA el escritorio
+# 5. Ventanas emergentes (mpv, terminales) se ven ENCIMA
+# 6. Añade soporte de ratón (copiar/pegar) y atajos completos
+# 7. INCLUYE xoni-update para actualizaciones desde GitHub
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -33,17 +35,27 @@ fi
 
 clear
 echo "========================================"
-echo "   XONIANT32 ULTIMATE - TERMINAL FIJA  "
+echo "   XONIANT32 ULTIMATE - OPTIMIZADO     "
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
-echo "Este script NO ELIMINA NINGÚN PAQUETE."
-echo "Conserva TODO el sistema antiX original."
+echo "Este script ELIMINA paquetes INNECESARIOS"
+echo "para ahorrar RAM y espacio en disco."
 echo ""
-echo "GARANTIZA inicio directo en terminal:"
-echo "  ✓ Terminal principal que OCULTA el escritorio"
-echo "  ✓ Auto-login directo a Openbox"
-echo "  ✓ Ventanas emergentes sobre la terminal"
-echo "  ✓ Atajos completos + ratón copiar/pegar"
+echo "CONSERVA todo lo GRÁFICO:"
+echo "  ✓ Controladores de video (Intel, AMD, NVIDIA, VESA)"
+echo "  ✓ Codecs multimedia (mpv, ffmpeg, yt-dlp)"
+echo "  ✓ Xorg completo y bibliotecas gráficas"
+echo "  ✓ ALSA y PulseAudio"
+echo ""
+echo "ELIMINA (para liberar recursos):"
+echo "  - Impresión (CUPS) - si no usas impresora"
+echo "  - Bluetooth - si no usas dispositivos BT"
+echo "  - Wicd (gestor alternativo) - usamos connman"
+echo "  - Scanner (saned)"
+echo "  - Juegos preinstalados"
+echo "  - Otros gestores de ventanas (icewm, fluxbox, jwm)"
+echo "  - Documentación (man pages)"
+echo "  - Paquetes de desarrollo (build-essential, etc.)"
 echo ""
 echo "INICIARÁ DIRECTAMENTE EN TERMINAL (sin escritorio)"
 echo "========================================"
@@ -52,19 +64,55 @@ read -p "¿Continuar? (s/n): " CONFIRM
 [[ "$CONFIRM" =~ ^[Ss]$ ]] || error_exit "Operación cancelada."
 
 # ============================================
-# 1. ACTUALIZAR REPOSITORIOS
+# 1. ELIMINAR PAQUETES INNECESARIOS (CONSERVANDO GRÁFICOS)
+# ============================================
+info "Eliminando paquetes innecesarios (liberando RAM y disco)..."
+
+# Impresión (solo si no la usas)
+apt purge -y cups cups-client cups-common cups-filters cups-ppdc || true
+
+# Bluetooth (servicios, no drivers)
+apt purge -y bluez bluetooth bluez-utils || true
+
+# Gestores de red alternativos
+apt purge -y wicd wicd-gtk wicd-daemon || true
+
+# Scanner
+apt purge -y sane saned sane-utils || true
+
+# Juegos y aplicaciones innecesarias
+apt purge -y gnome-games* aisleriot solitaire || true
+
+# Gestores de ventanas adicionales (solo conservamos Openbox)
+apt purge -y icewm* fluxbox* jwm* || true
+
+# Documentación (libera espacio)
+apt purge -y man-db manpages info || true
+
+# Paquetes de desarrollo (si no compilas nada)
+apt purge -y build-essential gcc g++ make cmake automake autoconf || true
+
+# ============================================
+# 2. ACTUALIZAR REPOSITORIOS
 # ============================================
 info "Actualizando repositorios..."
 apt update
 
 # ============================================
-# 2. INSTALAR PAQUETES ADICIONALES
+# 3. INSTALAR PAQUETES ESENCIALES
 # ============================================
-info "Instalando paquetes adicionales (si no están)..."
-apt install -y openbox obconf rxvt-unicode mpv yt-dlp ffmpeg xclip xsel connman
+info "Instalando paquetes esenciales..."
+apt install -y git curl wget htop nano alsa-utils pulseaudio pavucontrol
+apt install -y xorg xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-video-vesa
+apt install -y openbox obconf rxvt-unicode
+apt install -y mpv yt-dlp ffmpeg
+apt install -y xclip xsel connman
+
+# Controladores Intel (opcional, recomendado)
+apt install -y xserver-xorg-video-intel || true
 
 # ============================================
-# 3. CONFIGURAR MPV
+# 4. CONFIGURAR MPV (optimizado)
 # ============================================
 info "Configurando mpv..."
 mkdir -p /etc/mpv
@@ -94,7 +142,7 @@ cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
 
 # ============================================
-# 4. CONFIGURAR URXVT (COPIA/PEGA CON RATÓN)
+# 5. CONFIGURAR URXVT (COPIA/PEGA CON RATÓN)
 # ============================================
 info "Configurando urxvt con soporte de portapapeles..."
 
@@ -137,7 +185,7 @@ EOF
 chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources"
 
 # ============================================
-# 5. CONFIGURAR OPENBOX (TERMINAL FIJA + ATAJOS)
+# 6. CONFIGURAR OPENBOX (TERMINAL FIJA)
 # ============================================
 info "Configurando Openbox con terminal fija..."
 
@@ -200,6 +248,10 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
       <action name="Execute"><command>urxvt -e sudo connmanctl</command></action>
     </item>
     <separator/>
+    <item label="Actualizar xoniant32">
+      <action name="Execute"><command>urxvt -e xoni-update</command></action>
+    </item>
+    <separator/>
     <item label="Ayuda">
       <action name="Execute"><command>xoni-help</command></action>
     </item>
@@ -225,7 +277,7 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 6. CONFIGURAR CONNMAN
+# 7. CONFIGURAR CONNMAN
 # ============================================
 info "Configurando connman..."
 mkdir -p /etc/connman
@@ -238,11 +290,10 @@ EOF
 systemctl restart connman || sv restart connman || true
 
 # ============================================
-# 7. FORZAR OPENBOX COMO ÚNICA SESIÓN
+# 8. FORZAR OPENBOX COMO ÚNICA SESIÓN
 # ============================================
-info "Forzando Openbox como única sesión (ocultando otros escritorios)..."
+info "Forzando Openbox como única sesión..."
 
-# Crear archivo de sesión Openbox
 mkdir -p /usr/share/xsessions
 cat > /usr/share/xsessions/openbox.desktop << 'EOF'
 [Desktop Entry]
@@ -252,7 +303,6 @@ Exec=openbox-session
 Type=Application
 EOF
 
-# Desactivar otros gestores de ventanas
 for wm in icewm fluxbox jwm; do
     if [ -f "/usr/share/xsessions/$wm.desktop" ]; then
         mv "/usr/share/xsessions/$wm.desktop" "/usr/share/xsessions/$wm.desktop.disabled" 2>/dev/null || true
@@ -260,11 +310,10 @@ for wm in icewm fluxbox jwm; do
 done
 
 # ============================================
-# 8. CONFIGURAR AUTO-LOGIN EN EL GESTOR DE DISPLAY
+# 9. CONFIGURAR AUTO-LOGIN
 # ============================================
-info "Configurando auto-login con Openbox..."
+info "Configurando auto-login..."
 
-# LightDM
 if [ -f /etc/lightdm/lightdm.conf ]; then
     mkdir -p /etc/lightdm/lightdm.conf.d
     cat > /etc/lightdm/lightdm.conf.d/50-xoniant32.conf << EOF
@@ -273,10 +322,9 @@ autologin-user=$TARGET_USER
 autologin-session=openbox
 user-session=openbox
 EOF
-    info "LightDM configurado con auto-login a Openbox."
+    info "LightDM configurado."
 fi
 
-# SDDM
 if [ -f /etc/sddm.conf ]; then
     mkdir -p /etc/sddm.conf.d
     cat > /etc/sddm.conf.d/50-xoniant32.conf << EOF
@@ -284,62 +332,41 @@ if [ -f /etc/sddm.conf ]; then
 User=$TARGET_USER
 Session=openbox.desktop
 EOF
-    info "SDDM configurado con auto-login a Openbox."
+    info "SDDM configurado."
 fi
 
-# LXDM
 if [ -f /etc/lxdm/lxdm.conf ]; then
     sed -i "s/^# autologin=.*/autologin=$TARGET_USER/" /etc/lxdm/lxdm.conf
     sed -i "s/^# session=.*/session=\/usr\/share\/xsessions\/openbox.desktop/" /etc/lxdm/lxdm.conf
-    info "LXDM configurado con auto-login a Openbox."
+    info "LXDM configurado."
 fi
 
-# SLiM
 if [ -f /etc/slim.conf ]; then
     echo "default_user $TARGET_USER" >> /etc/slim.conf
     echo "auto_login yes" >> /etc/slim.conf
     echo "session openbox" >> /etc/slim.conf
-    info "SLiM configurado con auto-login a Openbox."
+    info "SLiM configurado."
 fi
 
-# ============================================
-# 9. CONFIGURACIÓN DE RESPUESTA (fallback si no hay gestor de display)
-# ============================================
-# Verificar si hay algún gestor de display activo
-DM_FOUND=false
-for dm in lightdm sddm lxdm slim; do
-    if systemctl list-unit-files | grep -q "$dm.service" 2>/dev/null; then
-        DM_FOUND=true
-        break
-    fi
-done
-
-if [ "$DM_FOUND" = false ]; then
-    warn "No se detectó gestor de display. Configurando auto-login en consola..."
-    
-    # Configurar auto-login en tty1
+# Fallback a consola
+if ! pgrep -x "lightdm|sddm|lxdm|slim" >/dev/null 2>&1; then
     mkdir -p /etc/systemd/system/getty@tty1.service.d
     cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $TARGET_USER --noclear %I 38400 linux
 EOF
-    
-    # Añadir startx automático al .bashrc
     cat >> "$USER_HOME/.bashrc" << 'EOF'
-
-# Iniciar X automáticamente en tty1 si no está corriendo
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     startx
     exit 0
 fi
 EOF
-    chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.bashrc"
-    info "Auto-login en consola con startx automático configurado."
+    info "Auto-login en consola configurado."
 fi
 
 # ============================================
-# 10. CREAR SCRIPTS XONI
+# 10. CREAR SCRIPTS XONI (CON xoni-update)
 # ============================================
 info "Creando scripts XONI..."
 
@@ -364,6 +391,30 @@ if [ -n "$TOOL" ]; then
 fi
 EOF
 
+cat > /usr/local/bin/xoni-update << 'EOF'
+#!/bin/bash
+# xoni-update – Actualiza xoniant32 desde GitHub
+REPO="https://github.com/XONIDU/xoniant32.git"
+DIR="/opt/xoniant32"
+echo "Actualizando xoniant32 desde GitHub..."
+if [ ! -d "$DIR" ]; then
+    sudo git clone "$REPO" "$DIR"
+else
+    cd "$DIR" && sudo git pull
+fi
+# Actualizar scripts
+if [ -f "$DIR/install-xoniant32-ultimate.sh" ]; then
+    sudo cp "$DIR/install-xoniant32-ultimate.sh" /usr/local/bin/install-xoniant32-ultimate.sh
+    sudo chmod +x /usr/local/bin/install-xoniant32-ultimate.sh
+fi
+# Actualizar scripts XONI
+sudo cp -v "$DIR"/scripts/xoni-* /usr/local/bin/ 2>/dev/null || true
+sudo chmod +x /usr/local/bin/xoni-* 2>/dev/null || true
+# Eliminar scripts antiguos
+sudo rm -f /usr/local/bin/xoniarch-* 2>/dev/null || true
+echo "[OK] xoniant32 actualizado correctamente"
+EOF
+
 cat > /usr/local/bin/xoni-menu << 'EOF'
 #!/bin/bash
 while true; do
@@ -374,16 +425,18 @@ while true; do
     echo "1) Nueva terminal (Ctrl+Alt+T)"
     echo "2) Instalar herramienta XONI"
     echo "3) Configurar red (connman)"
-    echo "4) Ayuda"
-    echo "5) Cerrar sesión (Win+q)"
+    echo "4) Actualizar xoniant32"
+    echo "5) Ayuda"
+    echo "6) Cerrar sesión (Win+q)"
     echo ""
     read -p "Opción: " opt
     case $opt in
         1) urxvt ;;
         2) urxvt -e xoni-install ; read -p "Enter..." ;;
         3) urxvt -e sudo connmanctl ;;
-        4) xoni-help ; read -p "Enter..." ;;
-        5) openbox --exit ;;
+        4) urxvt -e xoni-update ; read -p "Enter..." ;;
+        5) xoni-help ; read -p "Enter..." ;;
+        6) openbox --exit ;;
     esac
 done
 EOF
@@ -397,6 +450,7 @@ cat << 'HELP'
 COMANDOS:
   xoni-menu     : Menú interactivo
   xoni-install  : Instalar herramientas
+  xoni-update   : Actualizar xoniant32
   sudo connmanctl : Configurar WiFi
 
 ATAJOS:
@@ -414,6 +468,7 @@ RATÓN:
 
 ✓ Terminal principal NO SE PUEDE CERRAR
 ✓ Ventanas emergentes se ven ENCIMA
+✓ Actualización con xoni-update
 
 Repositorio: https://github.com/XONIDU/xoniant32
 HELP
@@ -424,17 +479,17 @@ chmod +x /usr/local/bin/xoni-*
 # Mensaje de bienvenida
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
-# Mensaje de bienvenida
 echo "========================================"
-echo "   XONIANT32 ULTIMATE - TERMINAL FIJA"
+echo "   XONIANT32 ULTIMATE - OPTIMIZADO"
 echo "   by Darian Alberto Camacho Salas"
 echo "========================================"
-echo "Comandos: xoni-help, xoni-menu, xoni-install"
+echo "Comandos: xoni-help, xoni-menu, xoni-install, xoni-update"
 echo ""
 echo "ATAJOS: Alt+Tab, Ctrl+Alt+T, Win+x, Win+q"
 echo "RATÓN: Seleccionar copia, click derecho pega"
 echo ""
 echo "✓ Terminal principal NO SE PUEDE CERRAR"
+echo "✓ Actualizar con: sudo xoni-update"
 echo "========================================"
 EOF
 
@@ -442,24 +497,35 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources" "$USER_HOME/.urxvt"
 
 # ============================================
-# 11. FINALIZACIÓN
+# 11. LIMPIEZA FINAL
+# ============================================
+info "Eliminando dependencias no usadas..."
+apt autoremove --purge -y
+
+info "Limpiando caché..."
+apt clean
+apt autoclean
+
+# ============================================
+# 12. FINALIZACIÓN
 # ============================================
 echo "========================================"
 echo "   INSTALACIÓN ULTIMATE COMPLETADA      "
 echo "========================================"
 echo ""
-echo "✅ MEJORAS APLICADAS:"
+echo "✅ OPTIMIZACIONES REALIZADAS:"
+echo "   ✓ Eliminados paquetes innecesarios"
+echo "   ✓ Conservados todos los controladores gráficos"
 echo "   ✓ Forzado Openbox como única sesión"
-echo "   ✓ Auto-login configurado en gestor de display"
-echo "   ✓ Fallback a consola con startx automático"
 echo "   ✓ Terminal principal OCULTA el escritorio"
 echo "   ✓ Ventanas emergentes se ven ENCIMA"
 echo "   ✓ Atajos completos + ratón copiar/pegar"
-echo "   ✓ NO se eliminó ningún paquete"
+echo "   ✓ xoni-update configurado"
 echo ""
 echo "▶ Para instalar xonitube:  xoni-install xonitube"
-echo "▶ Para abrir el menú:        xoni-menu"
-echo "▶ Para ayuda:                xoni-help"
+echo "▶ Para actualizar:         sudo xoni-update"
+echo "▶ Para abrir el menú:      xoni-menu"
+echo "▶ Para ayuda:              xoni-help"
 echo ""
 echo "Reinicia ahora: sudo reboot"
 echo ""
