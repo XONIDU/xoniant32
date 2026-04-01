@@ -5,75 +5,88 @@
 
 ## 📋 Descripción
 
-**XONIANT32 ULTIMATE** es una transformación de **antiX Linux** (Debian Stable de 32 bits) que configura el sistema para que inicie directamente en una **terminal gráfica fija**, manteniendo **TODOS los controladores y paquetes originales** de antiX. Ideal para hardware antiguo (como ASUS Eee PC 900) con máxima compatibilidad para reproducción de video y herramientas XONI.
-
-### Características principales
-
-- **NO elimina ningún paquete** – Conserva TODOS los controladores de video, audio, WiFi, Bluetooth, impresión, etc.
-- **Terminal principal FIJA** – Ocupa toda la pantalla, sin bordes, NO SE PUEDE CERRAR.
-- **Ventanas emergentes SUPERPUESTAS** – Las nuevas terminales y reproductores (mpv) se ven **ENCIMA** de la principal.
-- **Atajos de teclado COMPLETOS** – Alt+Tab, Ctrl+Alt+T, Alt+F4, Alt+F10, Win+x, Win+q.
-- **Soporte de ratón** – Seleccionar texto copia automáticamente; click derecho pega.
-- **Copiar/Pegar con teclado** – Ctrl+Shift+C/V, Ctrl+Insert/Shift+Insert.
-- **Sin escritorio visible** – El sistema arranca directamente en la terminal, sin barras ni menús.
-- **Compatible con XoniTube v5.5** – Reproducción de YouTube optimizada.
-- **Scripts XONI** – Instalación automática de herramientas en `~/` (xonitube, xonigraf, xonichat, etc.).
+**XONIANT32 ULTIMATE** es una transformación optimizada de **antiX Linux** (Debian Stable de 32 bits) que convierte tu sistema en una **terminal gráfica fija**, eliminando todo lo innecesario pero conservando TODOS los controladores gráficos, de audio y multimedia. Ideal para hardware antiguo (como ASUS Eee PC 900) con máxima compatibilidad para reproducción de video y herramientas XONI.
 
 ---
 
-## ⚠️ Advertencia
+## 📦 Contenido del repositorio
 
-Este script **NO ELIMINA NINGÚN PAQUETE** del sistema antiX original. Solo **AÑADE y CONFIGURA** la terminal fija y los atajos. Es seguro para tu sistema y conserva todas las funcionalidades originales.
-
----
-
-## 📥 Requisitos previos
-
-- Tener **antiX Linux 32 bits ya instalado** en tu disco duro (o ejecutarse desde live USB con persistencia).
-- Conexión a internet (cable o WiFi) – opcional, solo si quieres instalar herramientas XONI después.
-- Ejecutar el script con permisos de superusuario (`sudo`).
-
----
-
-## 🚀 Instalación (desde antiX ya instalado)
-
-Puedes descargar el script de instalación usando cualquiera de estos métodos:
-
-### Opción 1: con `wget`
-
-```bash
-wget -O install-xoniant32.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
-chmod +x install-xoniant32.sh
-sudo ./install-xoniant32.sh
+```
+xoniant32/
+├── antiX-386.iso                    # ISO base de antiX 32 bits
+├── install-xoniant32-ultimate.sh   # Script de instalación principal
+├── README.md                        # Este archivo
+└── .gitignore                        # Archivos ignorados
 ```
 
-### Opción 2: con `curl`
+---
 
-```bash
-curl -L -o install-xoniant32.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
-chmod +x install-xoniant32.sh
-sudo ./install-xoniant32.sh
-```
+## 🚀 Opciones de instalación
 
-### Opción 3: con `git` (clonando el repositorio)
+### Opción 1: Usar la ISO base antiX + script (recomendado)
+
+1. **Descarga el repositorio**:
+   ```bash
+   git clone https://github.com/XONIDU/xoniant32.git
+   cd xoniant32
+   ```
+
+2. **Graba la ISO antiX en un USB**:
+   ```bash
+   sudo dd if=antiX-386.iso of=/dev/sdX bs=4M status=progress
+   ```
+   *(Reemplaza `/dev/sdX` con tu dispositivo USB)*
+
+3. **Arranca desde el USB** (usuario `demo`, contraseña `demo`)
+
+4. **Conéctate a internet** (WiFi con connman o cable)
+
+5. **Descarga y ejecuta el script**:
+   ```bash
+   wget -O install-xoniant32-ultimate.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32-ultimate.sh
+   chmod +x install-xoniant32-ultimate.sh
+   sudo ./install-xoniant32-ultimate.sh
+   ```
+
+6. **Reinicia** cuando termine.
+
+### Opción 2: Instalar desde antiX live USB (script manual)
+
+1. **Arranca desde antiX live USB** (usuario `demo`, contraseña `demo`)
+
+2. **Descarga el script**:
+   ```bash
+   wget -O install-xoniant32-ultimate.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32-ultimate.sh
+   chmod +x install-xoniant32-ultimate.sh
+   ```
+
+3. **Ejecuta el instalador**:
+   ```bash
+   sudo ./install-xoniant32-ultimate.sh
+   ```
+
+4. **Reinicia** cuando termine.
+
+### Opción 3: Instalar en antiX ya instalado
+
+Si ya tienes antiX instalado en tu disco:
 
 ```bash
 git clone https://github.com/XONIDU/xoniant32.git
 cd xoniant32
-chmod +x install-xoniant32.sh
-sudo ./install-xoniant32.sh
+chmod +x install-xoniant32-ultimate.sh
+sudo ./install-xoniant32-ultimate.sh
+sudo reboot
 ```
-
-El script te pedirá confirmación una vez y luego hará todo automáticamente.
 
 ---
 
 ## 🎯 Primer inicio después de la instalación
 
-1. Reinicia el sistema: `sudo reboot`
-2. Iniciará **directamente en la terminal gráfica fija** (pantalla negra con terminal).
-3. La terminal principal **NO SE PUEDE CERRAR** (no tiene botón X ni responde a Alt+F4).
-4. Usa los atajos de teclado para operar el sistema.
+- **Usuario**: el que tenías en antiX (o `demo` si no lo cambiaste)
+- **Contraseña**: la misma que tenías
+
+El sistema arrancará **directamente en una terminal negra ocupando toda la pantalla**. La terminal principal **NO SE PUEDE CERRAR**.
 
 ---
 
@@ -88,7 +101,6 @@ El script te pedirá confirmación una vez y luego hará todo automáticamente.
 | `Ctrl+Alt+T` | Abrir nueva terminal (emergente, encima de la principal) |
 | `Win+x` | Abrir menú principal |
 | `Win+q` | Cerrar sesión (única forma de salir) |
-| `Ctrl+Alt+←/→` | Cambiar escritorio virtual |
 
 ---
 
@@ -105,14 +117,14 @@ El script te pedirá confirmación una vez y luego hará todo automáticamente.
 
 ---
 
-## 📦 Comandos XONI disponibles
+## 📦 Comandos XONI
 
 | Comando | Descripción |
 |---------|-------------|
-| `xoni-install <herramienta>` | Instala una herramienta XONI en `~/<herramienta>` y crea el comando global. |
-| `xoni-update` | Actualiza los scripts del sistema y las herramientas en `~/`. |
-| `xoni-help` | Muestra esta ayuda completa. |
-| `xoni-menu` | Abre un menú interactivo con opciones rápidas. |
+| `xoni-install <herramienta>` | Instala herramienta XONI en `~/<herramienta>` y crea comando global |
+| `xoni-update` | Actualiza xoniant32 desde GitHub (scripts y configuraciones) |
+| `xoni-menu` | Abre menú interactivo |
+| `xoni-help` | Muestra esta ayuda |
 
 ### Herramientas disponibles (desde XONIDU)
 
@@ -143,8 +155,6 @@ connect wifi_nombre_de_tu_red   # Usa TAB para autocompletar
 quit
 ```
 
-También puedes usar la opción 3 del menú interactivo (`xoni-menu`).
-
 ---
 
 ## 🔊 Ajustar volumen (ALSA)
@@ -153,29 +163,27 @@ También puedes usar la opción 3 del menú interactivo (`xoni-menu`).
 alsamixer
 ```
 
-Usa las flechas para subir/bajar el volumen y `Esc` para salir.
+Usa flechas para subir/bajar volumen, `Esc` para salir.
 
 ---
 
 ## 🔄 Actualización del sistema
 
-Para mantener tus scripts XONI actualizados, ejecuta:
-
 ```bash
-xoni-update
+sudo xoni-update
 ```
 
-Esto clonará/actualizará el repositorio principal y sincronizará los cambios.
+Esto clona/actualiza el repositorio desde GitHub y sincroniza los cambios en `/usr/local/bin/`.
 
 ---
 
 ## 💻 Hardware soportado
 
 ### Mínimo
-- **Procesador**: 32 bits (i386)
+- **Procesador**: 32 bits (i386) – Intel Pentium III / Celeron o superior
 - **RAM**: 512 MB (recomendado 1 GB)
 - **Almacenamiento**: 8 GB
-- **Gráficos**: Cualquier chip compatible con Xorg (todos los controladores originales se conservan)
+- **Gráficos**: Cualquier chip compatible com Xorg (todos los controladores se conservan)
 
 ### Probado en
 - **ASUS Eee PC 900** (Intel Celeron M 900MHz, 1GB RAM, GMA 900)
@@ -186,40 +194,31 @@ Esto clonará/actualizará el repositorio principal y sincronizará los cambios.
 
 ## 🛠️ Solución de problemas comunes
 
-### ❌ Error de conexión WiFi
+### ❌ El escritorio sigue apareciendo
+```bash
+# Verificar que Openbox está configurado como sesión por defecto
+cat /etc/lightdm/lightdm.conf.d/50-xoniant32.conf
+```
+
+### ❌ No se conecta WiFi
 ```bash
 sudo sv restart connman   # antiX usa runit
 sudo connmanctl
 # Vuelve a conectar
 ```
 
-### ❌ No se ven las ventanas emergentes
-Verifica que la terminal principal tenga `layer>below` y las emergentes `layer>above` en `~/.config/openbox/rc.xml`. El script ya lo configura automáticamente.
-
 ### ❌ El video de XoniTube no se ve
-Este script conserva TODOS los controladores originales, por lo que mpv debería funcionar sin problemas. Si hay problemas, prueba:
-
 ```bash
-mpv --vo=x11 --ao=alsa https://youtu.be/...
+# Verificar que mpv tiene backend correcto
+mpv --vo=help
+# Probar manualmente
+mpv --vo=x11 https://youtu.be/...
 ```
 
-### ❌ La terminal principal se cerró accidentalmente
-Si lograste cerrarla (muy difícil), reinicia el gestor de display:
-
+### ❌ No aparece el menú con Win+x
 ```bash
-sudo systemctl restart lightdm   # o sddm/lxdm/slim
-```
-
----
-
-## 📋 Estructura del repositorio
-
-```
-xoniant32/
-├── install-xoniant32.sh   # Script principal de instalación (versión Ultimate)
-├── install-xoniant32.sh            # Script original (con purga de paquetes)
-├── README.md                       # Este archivo
-└── .gitignore                      # Archivos ignorados
+# Verificar que el archivo rc.xml tiene los atajos
+grep "W-x" ~/.config/openbox/rc.xml
 ```
 
 ---
@@ -242,21 +241,4 @@ xoniant32/
 ---
 
 ⭐ **Si te gusta el proyecto, no olvides dejar una estrella en GitHub** ⭐
-```
-
----
-
-## 📝 **Resumen de cambios en el README**
-
-| Sección | Cambio |
-|---------|--------|
-| **Título** | XONIANT32 ULTIMATE |
-| **Descripción** | Aclarado que NO elimina paquetes, conserva TODOS los controladores |
-| **Advertencia** | Cambiada para reflejar que es seguro y no elimina nada |
-| **Instalación** | Añadida opción con `curl` y `git` |
-| **Atajos** | Incluidos todos los nuevos (Alt+F10, Win+↑, etc.) |
-| **Ratón** | Nueva sección con explicación de copiar/pegar |
-| **Comandos XONI** | Misma estructura, actualizado el nombre del script |
-| **Estructura** | Aclarado que hay dos versiones (original y Ultimate) |
-
 
