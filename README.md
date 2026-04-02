@@ -1,96 +1,110 @@
-# XONIANT32 ULTIMATE
+# XONIANT32 
 ### by Darian Alberto Camacho Salas
 
 ---
 
-## 📋 Descripción
+## Descripción
 
-**XONIANT32 ULTIMATE** es una transformación optimizada de **antiX Linux** (Debian Stable de 32 bits) que convierte tu sistema en una **terminal gráfica fija**, eliminando todo lo innecesario pero conservando TODOS los controladores gráficos, de audio y multimedia. Ideal para hardware antiguo (como ASUS Eee PC 900) con máxima compatibilidad para reproducción de video y herramientas XONI.
+**XONIANT32 ULTIMATE** es una distribución Linux especializada que transforma antiX Linux en un entorno de terminal gráfica fija, diseñada específicamente para hardware de 32 bits con recursos limitados, como la ASUS Eee PC 900. Su propósito es proporcionar una base ultra ligera pero completamente funcional para ejecutar herramientas XONI (xonitube, xonigraf, xonichat, xonimail) sin perder compatibilidad con controladores gráficos, de audio y multimedia.
 
----
+Este proyecto forma parte del ecosistema XONIDU, una organización dedicada al desarrollo de código abierto con énfasis en automatización, optimización de procesos y democratización del acceso a herramientas tecnológicas eficientes.
 
-## 📦 Contenido del repositorio
-
-```
-xoniant32/
-├── antiX-386.iso                    # ISO base de antiX 32 bits
-├── install-xoniant32-ultimate.sh   # Script de instalación principal
-├── README.md                        # Este archivo
-└── .gitignore                        # Archivos ignorados
-```
+**Versión actual:** 1.31.1
 
 ---
 
-## 🚀 Opciones de instalación
+## Características
 
-### Opción 1: Usar la ISO base antiX + script (recomendado)
+- **Terminal principal fija** que ocupa toda la pantalla, sin bordes, sin botón de cerrar.
+- **Ventanas emergentes** (mpv, nuevas terminales) se ven ENCIMA de la terminal principal.
+- **Soporte completo de ratón:** seleccionar texto copia, click derecho pega.
+- **Atajos de teclado completos:** Alt+Tab, Alt+F4, Alt+F10, Win+↑, Ctrl+Alt+T, Win+x, Win+q.
+- **Actualización desde GitHub:** `xoni-update` mantiene tu sistema al día.
+- **Instalación modular:** `xoni-install` descarga herramientas XONI bajo demanda.
+- **Optimización de recursos:** elimina paquetes innecesarios pero conserva todos los controladores gráficos y multimedia.
 
-1. **Descarga el repositorio**:
-   ```bash
-   git clone https://github.com/XONIDU/xoniant32.git
-   cd xoniant32
-   ```
+---
 
-2. **Graba la ISO antiX en un USB**:
-   ```bash
-   sudo dd if=antiX-386.iso of=/dev/sdX bs=4M status=progress
-   ```
-   *(Reemplaza `/dev/sdX` con tu dispositivo USB)*
+## Requisitos
 
-3. **Arranca desde el USB** (usuario `demo`, contraseña `demo`)
+- Procesador de 32 bits (i386)
+- 512 MB de RAM (recomendado 1 GB)
+- 8 GB de espacio en disco
+- antiX Linux 23.2 (32 bits) instalado o live USB
 
-4. **Conéctate a internet** (WiFi con connman o cable)
+---
 
-5. **Descarga y ejecuta el script**:
-   ```bash
-   wget -O install-xoniant32-ultimate.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32-ultimate.sh
-   chmod +x install-xoniant32-ultimate.sh
-   sudo ./install-xoniant32-ultimate.sh
-   ```
+## Descarga de la ISO base
 
-6. **Reinicia** cuando termine.
+Puedes descargar la ISO base de antiX-23.2 (32 bits) desde el siguiente enlace:
 
-### Opción 2: Instalar desde antiX live USB (script manual)
+**https://sourceforge.net/projects/antix-linux/files/Final/antiX-23.2/antiX-23.2_386-full.iso/download**
 
-1. **Arranca desde antiX live USB** (usuario `demo`, contraseña `demo`)
+También puedes usar los mirrors oficiales de antiX para obtener la ISO.
 
-2. **Descarga el script**:
-   ```bash
-   wget -O install-xoniant32-ultimate.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32-ultimate.sh
-   chmod +x install-xoniant32-ultimate.sh
-   ```
+---
 
-3. **Ejecuta el instalador**:
-   ```bash
-   sudo ./install-xoniant32-ultimate.sh
-   ```
+## Instalación
 
-4. **Reinicia** cuando termine.
+### Opción 1: con wget
 
-### Opción 3: Instalar en antiX ya instalado
+```bash
+wget -O install-xoniant32.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
+chmod +x install-xoniant32.sh
+sudo ./install-xoniant32.sh
+```
 
-Si ya tienes antiX instalado en tu disco:
+### Opción 2: con curl
+
+```bash
+curl -L -o install-xoniant32.sh https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
+chmod +x install-xoniant32.sh
+sudo ./install-xoniant32.sh
+```
+
+### Opción 3: con git (clonando el repositorio)
 
 ```bash
 git clone https://github.com/XONIDU/xoniant32.git
 cd xoniant32
-chmod +x install-xoniant32-ultimate.sh
-sudo ./install-xoniant32-ultimate.sh
-sudo reboot
+chmod +x install-xoniant32.sh
+sudo ./install-xoniant32.sh
+```
+
+El script te pedirá confirmación una vez y luego hará todo automáticamente.
+
+---
+
+## Primer inicio después de la instalación
+
+1. Reinicia el sistema: `sudo reboot`
+2. Inicia sesión con tu usuario habitual (demo/demo si es la primera vez)
+3. El sistema arrancará directamente en una terminal negra ocupando toda la pantalla
+4. La terminal principal NO SE PUEDE CERRAR
+
+---
+
+## Comandos XONI
+
+| Comando | Descripción |
+|---------|-------------|
+| `xoni-install <herramienta>` | Instala una herramienta XONI desde GitHub |
+| `xoni-update` | Actualiza xoniant32 desde GitHub |
+| `xoni-menu` | Abre menú interactivo |
+| `xoni-help` | Muestra ayuda completa |
+
+### Herramientas disponibles
+
+```bash
+xoni-install xonitube    # Buscador y reproductor de YouTube
+xoni-install xonigraf    # Graficador matemático
+xoni-install xonichat    # Chat con IA (Gemini)
+xoni-install xonimail    # Cliente de correo
 ```
 
 ---
 
-## 🎯 Primer inicio después de la instalación
-
-- **Usuario**: el que tenías en antiX (o `demo` si no lo cambiaste)
-- **Contraseña**: la misma que tenías
-
-El sistema arrancará **directamente en una terminal negra ocupando toda la pantalla**. La terminal principal **NO SE PUEDE CERRAR**.
-
----
-
-## ⌨️ Atajos de teclado
+## Atajos de teclado
 
 | Tecla | Acción |
 |-------|--------|
@@ -98,53 +112,28 @@ El sistema arrancará **directamente en una terminal negra ocupando toda la pant
 | `Alt+F4` | Cerrar ventana actual (excepto la principal) |
 | `Alt+F10` | Maximizar/restaurar ventana |
 | `Win+↑` | Maximizar ventana |
-| `Ctrl+Alt+T` | Abrir nueva terminal (emergente, encima de la principal) |
+| `Ctrl+Alt+T` | Abrir nueva terminal (emergente) |
 | `Win+x` | Abrir menú principal |
-| `Win+q` | Cerrar sesión (única forma de salir) |
+| `Win+q` | Cerrar sesión |
 
 ---
 
-## 🖱️ Ratón y portapapeles
+## Ratón y portapapeles
 
-| Acción | Resultado |
-|--------|-----------|
-| **Seleccionar texto** | Copia automáticamente al portapapeles |
-| **Click derecho** | Pega el texto copiado |
-| `Ctrl+Shift+C` | Copiar selección |
-| `Ctrl+Shift+V` | Pegar |
-| `Ctrl+Insert` | Copiar |
-| `Shift+Insert` | Pegar |
+- Seleccionar texto con el botón izquierdo → copia automáticamente
+- Click derecho → pega el texto copiado
+- Ctrl+Shift+C / Ctrl+Insert → copiar
+- Ctrl+Shift+V / Shift+Insert → pegar
 
 ---
 
-## 📦 Comandos XONI
-
-| Comando | Descripción |
-|---------|-------------|
-| `xoni-install <herramienta>` | Instala herramienta XONI en `~/<herramienta>` y crea comando global |
-| `xoni-update` | Actualiza xoniant32 desde GitHub (scripts y configuraciones) |
-| `xoni-menu` | Abre menú interactivo |
-| `xoni-help` | Muestra esta ayuda |
-
-### Herramientas disponibles (desde XONIDU)
-
-```bash
-xoni-install xonitube    # Buscador y reproductor de YouTube
-xoni-install xonigraf    # Graficador matemático
-xoni-install xonichat    # Chat con IA (Gemini)
-xoni-install xonimail    # Cliente de correo
-# ... y más en https://github.com/XONIDU
-```
-
----
-
-## 🌐 Conectarse a WiFi (connman)
+## Conectarse a WiFi
 
 ```bash
 sudo connmanctl
 ```
 
-Dentro de `connmanctl`:
+Dentro de connmanctl:
 
 ```bash
 agent on
@@ -157,17 +146,17 @@ quit
 
 ---
 
-## 🔊 Ajustar volumen (ALSA)
+## Ajustar volumen
 
 ```bash
 alsamixer
 ```
 
-Usa flechas para subir/bajar volumen, `Esc` para salir.
+Usa flechas para subir/bajar volumen, Esc para salir.
 
 ---
 
-## 🔄 Actualización del sistema
+## Actualización del sistema
 
 ```bash
 sudo xoni-update
@@ -177,68 +166,82 @@ Esto clona/actualiza el repositorio desde GitHub y sincroniza los cambios en `/u
 
 ---
 
-## 💻 Hardware soportado
+## Hardware soportado
 
-### Mínimo
-- **Procesador**: 32 bits (i386) – Intel Pentium III / Celeron o superior
-- **RAM**: 512 MB (recomendado 1 GB)
-- **Almacenamiento**: 8 GB
-- **Gráficos**: Cualquier chip compatible com Xorg (todos los controladores se conservan)
+**Mínimo:**
+- Procesador: 32 bits (i386)
+- RAM: 512 MB
+- Almacenamiento: 8 GB
+- Gráficos: Cualquier chip compatible con Xorg
 
-### Probado en
-- **ASUS Eee PC 900** (Intel Celeron M 900MHz, 1GB RAM, GMA 900)
-- **ThinkPad X60** (Intel Core Duo, 32 bits)
-- **VirtualBox / QEMU**
+**Probado en:**
+- ASUS Eee PC 900 (Intel Celeron M 900MHz, 1GB RAM, GMA 900)
+- ThinkPad X60 (Intel Core Duo, 32 bits)
+- VirtualBox / QEMU
 
 ---
 
-## 🛠️ Solución de problemas comunes
+## Solución de problemas
 
-### ❌ El escritorio sigue apareciendo
+### El escritorio sigue apareciendo
+
+Verificar que Openbox está configurado como sesión por defecto:
 ```bash
-# Verificar que Openbox está configurado como sesión por defecto
 cat /etc/lightdm/lightdm.conf.d/50-xoniant32.conf
 ```
 
-### ❌ No se conecta WiFi
+### No se conecta WiFi
+
+Reiniciar connman:
 ```bash
 sudo sv restart connman   # antiX usa runit
 sudo connmanctl
-# Vuelve a conectar
 ```
 
-### ❌ El video de XoniTube no se ve
+### El video de XoniTube no se ve
+
+Verificar backend de mpv:
 ```bash
-# Verificar que mpv tiene backend correcto
 mpv --vo=help
-# Probar manualmente
 mpv --vo=x11 https://youtu.be/...
 ```
 
-### ❌ No aparece el menú con Win+x
+### No aparece el menú con Win+x
+
+Verificar atajos en Openbox:
 ```bash
-# Verificar que el archivo rc.xml tiene los atajos
 grep "W-x" ~/.config/openbox/rc.xml
 ```
 
 ---
 
-## ✉️ Contacto y créditos
+## Estructura del repositorio
 
-- **Autor**: Darian Alberto Camacho Salas
-- **Email**: xonidu@gmail.com
-- **Web**: [https://xonipage.xonidu.com/](https://xonipage.xonidu.com/)
-- **GitHub**: [@XONIDU](https://github.com/XONIDU)
+```
+xoniant32/
+├── install-xoniant32.sh   # Script de instalación principal (v1.31.1)
+├── README.md              # Este archivo
+└── .gitignore             # Archivos ignorados
+```
 
 ---
 
-## 🌐 Enlaces útiles
+## Contacto y créditos
 
-- [Repositorio XONIANT32](https://github.com/XONIDU/xoniant32)
-- [antiX Linux oficial](https://antixlinux.com/)
-- [Foro de antiX](https://www.antixforum.com/)
+- **Autor:** Darian Alberto Camacho Salas
+- **Email:** xonidu@gmail.com
+- **Web:** https://xonipage.xonidu.com/
+- **GitHub:** @XONIDU
+- **Organización:** XONIDU
+
+---
+
+## Enlaces útiles
+
+- Repositorio XONIANT32: https://github.com/XONIDU/xoniant32
+- antiX Linux oficial: https://antixlinux.com/
+- Foro de antiX: https://www.antixforum.com/
 
 ---
 
 ⭐ **Si te gusta el proyecto, no olvides dejar una estrella en GitHub** ⭐
-
