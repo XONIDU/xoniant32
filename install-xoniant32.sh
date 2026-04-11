@@ -1,15 +1,17 @@
 #!/bin/bash
-# install-xoniant32-ultimate.sh – Terminal fija optimizada con xoni-update
+# XONIANT32 ULTIMATE - INSTALADOR TODO EN UNO
 # Autor: Darian Alberto Camacho Salas
+# Repositorio: https://github.com/XONIDU/xoniant32
+# Version: 1.31.1
 #
 # Este script:
-# 1. ELIMINA paquetes INNECESARIOS (ahorro de RAM y disco)
-# 2. CONSERVA TODO lo gráfico (controladores, codecs, Xorg, OpenGL)
-# 3. CONFIGURA Openbox como única sesión
-# 4. Terminal principal fija que OCULTA el escritorio
-# 5. Ventanas emergentes (mpv, terminales) se ven ENCIMA
-# 6. Añade soporte de ratón (copiar/pegar) y atajos completos
-# 7. INCLUYE xoni-update para actualizaciones desde GitHub
+# 1. Configura DNS y red para garantizar conectividad
+# 2. Elimina paquetes innecesarios
+# 3. Conserva todos los controladores gráficos y multimedia
+# 4. Instala Openbox, terminal fija y atajos
+# 5. Configura auto-login
+# 6. Instala scripts XONI
+# 7. Configura actualización desde GitHub
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -23,39 +25,73 @@ error_exit() { echo -e "${RED}[ERROR] $1${NC}" >&2; exit 1; }
 info()  { echo -e "${GREEN}[INFO] $1${NC}"; }
 warn()  { echo -e "${YELLOW}[AVISO] $1${NC}"; }
 
-# Verificar root
+# ============================================
+# 1. VERIFICAR ROOT Y ANTIX
+# ============================================
 if [ "$EUID" -ne 0 ]; then
     error_exit "Este script debe ejecutarse como root (sudo)."
 fi
 
-# Verificar antiX
 if [ ! -f /etc/antix-version ]; then
     error_exit "Este script debe ejecutarse en antiX Linux."
 fi
 
+# ============================================
+# 2. CONFIGURAR DNS Y RED
+# ============================================
+info "Configurando DNS y red..."
+
+# Configurar DNS manualmente
+echo "nameserver 8.8.8.8" | tee /etc/resolv.conf
+echo "nameserver 8.8.4.4" | tee -a /etc/resolv.conf
+
+# Configurar dhclient para que los cambios sean permanentes
+if [ -f /etc/dhcp/dhclient.conf ]; then
+    if ! grep -q "prepend domain-name-servers" /etc/dhcp/dhclient.conf; then
+        echo "prepend domain-name-servers 8.8.8.8, 8.8.4.4;" >> /etc/dhcp/dhclient.conf
+    fi
+fi
+
+# Reiniciar servicios de red
+sv restart dhcpcd 2>/dev/null || true
+sv restart connman 2>/dev/null || true
+
+# Probar conectividad
+if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+    warn "No hay conexión a internet. Verifica tu red."
+fi
+
+# ============================================
+# 3. MENSAJE DE ADVERTENCIA
+# ============================================
 clear
 echo "========================================"
-echo "   XONIANT32 ULTIMATE - OPTIMIZADO     "
+echo "   XONIANT32 ULTIMATE - TODO EN UNO    "
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
-echo "Este script ELIMINA paquetes INNECESARIOS"
-echo "para ahorrar RAM y espacio en disco."
 echo ""
-echo "CONSERVA todo lo GRÁFICO:"
-echo "  ✓ Controladores de video (Intel, AMD, NVIDIA, VESA)"
-echo "  ✓ Codecs multimedia (mpv, ffmpeg, yt-dlp)"
-echo "  ✓ Xorg completo y bibliotecas gráficas"
-echo "  ✓ ALSA y PulseAudio"
+echo "Este script:"
+echo "  ✓ Configura DNS y red"
+echo "  ✓ Elimina paquetes innecesarios"
+echo "  ✓ Conserva controladores gráficos"
+echo "  ✓ Configura terminal fija"
+echo "  ✓ Instala scripts XONI"
+echo "  ✓ Configura actualización desde GitHub"
 echo ""
-echo "ELIMINA (para liberar recursos):"
-echo "  - Impresión (CUPS) - si no usas impresora"
-echo "  - Bluetooth - si no usas dispositivos BT"
-echo "  - Wicd (gestor alternativo) - usamos connman"
+echo "ELIMINARÁ (si los tienes):"
+echo "  - Impresión (CUPS)"
+echo "  - Bluetooth"
+echo "  - Wicd"
 echo "  - Scanner (saned)"
 echo "  - Juegos preinstalados"
-echo "  - Otros gestores de ventanas (icewm, fluxbox, jwm)"
+echo "  - Otros gestores (icewm, fluxbox, jwm)"
 echo "  - Documentación (man pages)"
-echo "  - Paquetes de desarrollo (build-essential, etc.)"
+echo ""
+echo "CONSERVARÁ:"
+echo "  - Todos los controladores gráficos"
+echo "  - Xorg completo"
+echo "  - ALSA y PulseAudio"
+echo "  - Codecs multimedia"
 echo ""
 echo "INICIARÁ DIRECTAMENTE EN TERMINAL (sin escritorio)"
 echo "========================================"
@@ -64,55 +100,41 @@ read -p "¿Continuar? (s/n): " CONFIRM
 [[ "$CONFIRM" =~ ^[Ss]$ ]] || error_exit "Operación cancelada."
 
 # ============================================
-# 1. ELIMINAR PAQUETES INNECESARIOS (CONSERVANDO GRÁFICOS)
-# ============================================
-info "Eliminando paquetes innecesarios (liberando RAM y disco)..."
-
-# Impresión (solo si no la usas)
-apt purge -y cups cups-client cups-common cups-filters cups-ppdc || true
-
-# Bluetooth (servicios, no drivers)
-apt purge -y bluez bluetooth bluez-utils || true
-
-# Gestores de red alternativos
-apt purge -y wicd wicd-gtk wicd-daemon || true
-
-# Scanner
-apt purge -y sane saned sane-utils || true
-
-# Juegos y aplicaciones innecesarias
-apt purge -y gnome-games* aisleriot solitaire || true
-
-# Gestores de ventanas adicionales (solo conservamos Openbox)
-apt purge -y icewm* fluxbox* jwm* || true
-
-# Documentación (libera espacio)
-apt purge -y man-db manpages info || true
-
-# Paquetes de desarrollo (si no compilas nada)
-apt purge -y build-essential gcc g++ make cmake automake autoconf || true
-
-# ============================================
-# 2. ACTUALIZAR REPOSITORIOS
+# 4. ACTUALIZAR REPOSITORIOS
 # ============================================
 info "Actualizando repositorios..."
-apt update
+apt update || warn "Error en apt update, continuando..."
 
 # ============================================
-# 3. INSTALAR PAQUETES ESENCIALES
+# 5. ELIMINAR PAQUETES INNECESARIOS
+# ============================================
+info "Eliminando paquetes innecesarios..."
+
+apt purge -y cups cups-client cups-common cups-filters cups-ppdc 2>/dev/null || true
+apt purge -y bluez bluetooth bluez-utils 2>/dev/null || true
+apt purge -y wicd wicd-gtk wicd-daemon 2>/dev/null || true
+apt purge -y sane saned sane-utils 2>/dev/null || true
+apt purge -y gnome-games* aisleriot solitaire 2>/dev/null || true
+apt purge -y icewm* fluxbox* jwm* 2>/dev/null || true
+apt purge -y man-db manpages info 2>/dev/null || true
+apt purge -y build-essential gcc g++ make cmake automake autoconf 2>/dev/null || true
+
+# ============================================
+# 6. INSTALAR PAQUETES ESENCIALES
 # ============================================
 info "Instalando paquetes esenciales..."
+
 apt install -y git curl wget htop nano alsa-utils pulseaudio pavucontrol
 apt install -y xorg xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-video-vesa
 apt install -y openbox obconf rxvt-unicode
 apt install -y mpv yt-dlp ffmpeg
 apt install -y xclip xsel connman
 
-# Controladores Intel (opcional, recomendado)
-apt install -y xserver-xorg-video-intel || true
+# Controladores Intel (opcional)
+apt install -y xserver-xorg-video-intel 2>/dev/null || true
 
 # ============================================
-# 4. CONFIGURAR MPV (optimizado)
+# 7. CONFIGURAR MPV
 # ============================================
 info "Configurando mpv..."
 mkdir -p /etc/mpv
@@ -142,9 +164,9 @@ cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
 
 # ============================================
-# 5. CONFIGURAR URXVT (COPIA/PEGA CON RATÓN)
+# 8. CONFIGURAR URXVT (COPIA/PEGA CON RATÓN)
 # ============================================
-info "Configurando urxvt con soporte de portapapeles..."
+info "Configurando urxvt..."
 
 mkdir -p "$USER_HOME/.urxvt/ext"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.urxvt"
@@ -163,7 +185,6 @@ sub on_button_press {
     return ();
 }
 EOF
-
 chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.urxvt/ext/clipboard-paste-on-right-click"
 
 cat > "$USER_HOME/.Xresources" << 'EOF'
@@ -181,13 +202,12 @@ URxvt.iso14755: false
 URxvt.iso14755_52: false
 URxvt.selectStyle: word
 EOF
-
 chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources"
 
 # ============================================
-# 6. CONFIGURAR OPENBOX (TERMINAL FIJA)
+# 9. CONFIGURAR OPENBOX (TERMINAL FIJA)
 # ============================================
-info "Configurando Openbox con terminal fija..."
+info "Configurando Openbox..."
 
 mkdir -p "$USER_HOME/.config/openbox"
 
@@ -263,10 +283,7 @@ cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 EOF
 
 cat > "$USER_HOME/.config/openbox/autostart" << 'EOF'
-# TERMINAL PRINCIPAL (NO SE PUEDE CERRAR)
 urxvt -title "principal" -fg white -bg black &
-
-# Cargar configuración Xresources
 xrdb -merge ~/.Xresources
 EOF
 
@@ -277,7 +294,7 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 7. CONFIGURAR CONNMAN
+# 10. CONFIGURAR CONNMAN
 # ============================================
 info "Configurando connman..."
 mkdir -p /etc/connman
@@ -287,10 +304,10 @@ PreferredTechnologies = wifi,ethernet
 AllowHostnames = true
 AutoConnect = true
 EOF
-systemctl restart connman || sv restart connman || true
+sv restart connman 2>/dev/null || true
 
 # ============================================
-# 8. FORZAR OPENBOX COMO ÚNICA SESIÓN
+# 11. FORZAR OPENBOX COMO ÚNICA SESIÓN
 # ============================================
 info "Forzando Openbox como única sesión..."
 
@@ -310,7 +327,7 @@ for wm in icewm fluxbox jwm; do
 done
 
 # ============================================
-# 9. CONFIGURAR AUTO-LOGIN
+# 12. CONFIGURAR AUTO-LOGIN
 # ============================================
 info "Configurando auto-login..."
 
@@ -322,7 +339,6 @@ autologin-user=$TARGET_USER
 autologin-session=openbox
 user-session=openbox
 EOF
-    info "LightDM configurado."
 fi
 
 if [ -f /etc/sddm.conf ]; then
@@ -332,20 +348,17 @@ if [ -f /etc/sddm.conf ]; then
 User=$TARGET_USER
 Session=openbox.desktop
 EOF
-    info "SDDM configurado."
 fi
 
 if [ -f /etc/lxdm/lxdm.conf ]; then
     sed -i "s/^# autologin=.*/autologin=$TARGET_USER/" /etc/lxdm/lxdm.conf
     sed -i "s/^# session=.*/session=\/usr\/share\/xsessions\/openbox.desktop/" /etc/lxdm/lxdm.conf
-    info "LXDM configurado."
 fi
 
 if [ -f /etc/slim.conf ]; then
     echo "default_user $TARGET_USER" >> /etc/slim.conf
     echo "auto_login yes" >> /etc/slim.conf
     echo "session openbox" >> /etc/slim.conf
-    info "SLiM configurado."
 fi
 
 # Fallback a consola
@@ -362,11 +375,10 @@ if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     exit 0
 fi
 EOF
-    info "Auto-login en consola configurado."
 fi
 
 # ============================================
-# 10. CREAR SCRIPTS XONI (CON xoni-update)
+# 13. CREAR SCRIPTS XONI
 # ============================================
 info "Creando scripts XONI..."
 
@@ -393,7 +405,6 @@ EOF
 
 cat > /usr/local/bin/xoni-update << 'EOF'
 #!/bin/bash
-# xoni-update – Actualiza xoniant32 desde GitHub
 REPO="https://github.com/XONIDU/xoniant32.git"
 DIR="/opt/xoniant32"
 echo "Actualizando xoniant32 desde GitHub..."
@@ -402,15 +413,12 @@ if [ ! -d "$DIR" ]; then
 else
     cd "$DIR" && sudo git pull
 fi
-# Actualizar scripts
-if [ -f "$DIR/install-xoniant32-ultimate.sh" ]; then
-    sudo cp "$DIR/install-xoniant32-ultimate.sh" /usr/local/bin/install-xoniant32-ultimate.sh
-    sudo chmod +x /usr/local/bin/install-xoniant32-ultimate.sh
+if [ -f "$DIR/install-xoniant32.sh" ]; then
+    sudo cp "$DIR/install-xoniant32.sh" /usr/local/bin/install-xoniant32.sh
+    sudo chmod +x /usr/local/bin/install-xoniant32.sh
 fi
-# Actualizar scripts XONI
 sudo cp -v "$DIR"/scripts/xoni-* /usr/local/bin/ 2>/dev/null || true
 sudo chmod +x /usr/local/bin/xoni-* 2>/dev/null || true
-# Eliminar scripts antiguos
 sudo rm -f /usr/local/bin/xoniarch-* 2>/dev/null || true
 echo "[OK] xoniant32 actualizado correctamente"
 EOF
@@ -476,7 +484,9 @@ EOF
 
 chmod +x /usr/local/bin/xoni-*
 
-# Mensaje de bienvenida
+# ============================================
+# 14. CONFIGURAR .BASHRC Y MENSAJE DE BIENVENIDA
+# ============================================
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
 echo "========================================"
@@ -497,7 +507,7 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources" "$USER_HOME/.urxvt"
 
 # ============================================
-# 11. LIMPIEZA FINAL
+# 15. LIMPIEZA FINAL
 # ============================================
 info "Eliminando dependencias no usadas..."
 apt autoremove --purge -y
@@ -507,19 +517,22 @@ apt clean
 apt autoclean
 
 # ============================================
-# 12. FINALIZACIÓN
+# 16. FINALIZACIÓN
 # ============================================
 echo "========================================"
-echo "   INSTALACIÓN ULTIMATE COMPLETADA      "
+echo "   INSTALACIÓN COMPLETADA               "
 echo "========================================"
 echo ""
-echo "✅ OPTIMIZACIONES REALIZADAS:"
-echo "   ✓ Eliminados paquetes innecesarios"
-echo "   ✓ Conservados todos los controladores gráficos"
-echo "   ✓ Forzado Openbox como única sesión"
-echo "   ✓ Terminal principal OCULTA el escritorio"
-echo "   ✓ Ventanas emergentes se ven ENCIMA"
-echo "   ✓ Atajos completos + ratón copiar/pegar"
+echo "✅ TODO EN UNO:"
+echo "   ✓ DNS y red configurados"
+echo "   ✓ Paquetes innecesarios eliminados"
+echo "   ✓ Controladores conservados"
+echo "   ✓ Openbox configurado"
+echo "   ✓ Terminal fija (no se puede cerrar)"
+echo "   ✓ Ventanas emergentes encima"
+echo "   ✓ Atajos completos"
+echo "   ✓ Ratón copiar/pegar"
+echo "   ✓ Scripts XONI instalados"
 echo "   ✓ xoni-update configurado"
 echo ""
 echo "▶ Para instalar xonitube:  xoni-install xonitube"
