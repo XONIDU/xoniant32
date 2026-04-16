@@ -1,55 +1,53 @@
-REQUISITOS PARA INSTALAR XONIANT32 ULTIMATE
-============================================
+REQUISITOS PARA XONIANT32 ULTIMATE
+==================================
 
-1. REQUISITOS DE HARDWARE
--------------------------
-- Procesador: 32 bits (i386) compatible (Intel Pentium III / Celeron o superior)
+1. HARDWARE
+-----------
+- Procesador: 32 bits (i386 o i686) – Intel Pentium III / Celeron o superior
 - Memoria RAM: 512 MB mínimo (1 GB recomendado)
 - Almacenamiento: 8 GB libres en el disco de destino
 - Gráficos: Cualquier chip compatible con Xorg (controladores fbdev/vesa incluidos)
 - Hardware probado: ASUS Eee PC 900 (Intel Celeron M 900MHz, 1GB RAM, GMA 900)
 
-2. REQUISITOS DE SOFTWARE BASE
-------------------------------
-- Tener instalado antiX Linux 32 bits (versión 23.2 o superior recomendada)
-- antiX debe estar funcionando correctamente (puede ser instalado en disco o en live USB)
+2. SOFTWARE BASE
+----------------
+- antiX Linux 23.2 (32 bits) instalado en disco duro o en live USB
+- antiX debe estar funcionando correctamente (usuario demo/demo en live)
 - Conexión a internet activa (cable Ethernet o WiFi configurado)
 
-3. REQUISITOS DE RED
---------------------
-- Conexión a internet estable (para descargar paquetes y herramientas XONI)
-- Para WiFi: connman viene incluido en antiX y se usará durante la instalación
+3. RED
+------
+- Conexión a internet estable (para descargar paquetes y actualizaciones)
+- Para WiFi: connman incluido en antiX (se usará durante la instalación)
 
 4. ARCHIVOS NECESARIOS
 ----------------------
-- Script de instalación: install-xoniant32-ultimate.sh
+- Script de instalación: install-xoniant32.sh (descargado desde GitHub)
 - Tamaño del script: ~35 KB
-- El script puede descargarse desde: https://github.com/XONIDU/xoniant32
+- URL: https://raw.githubusercontent.com/XONIDU/xoniant32/main/install-xoniant32.sh
 
 5. PERMISOS Y EJECUCIÓN
-------------------------
+-----------------------
 - El script debe ejecutarse con privilegios de superusuario (sudo)
-- Dar permisos de ejecución: chmod +x install-xoniant32-ultimate.sh
-- Ejecutar: sudo ./install-xoniant32-ultimate.sh
+- Dar permisos de ejecución: chmod +x install-xoniant32.sh
+- Ejecutar: sudo ./install-xoniant32.sh
 
 6. TIEMPO ESTIMADO
--------------------
-- Instalación completa: 15-30 minutos (dependiendo de la velocidad de internet)
-- La ISO resultante (si se crea) ocupará aproximadamente 1 GB
+------------------
+- Instalación completa: 10-20 minutos (dependiendo de la velocidad de internet)
+- El sistema resultante ocupará aproximadamente 2 GB en disco
 
 7. NOTAS IMPORTANTES
 --------------------
-- El script eliminará automáticamente paquetes innecesarios (CUPS, Bluetooth, etc.)
+- El script eliminará automáticamente paquetes innecesarios (CUPS, Bluetooth, wicd, sane, juegos, otros gestores de ventanas)
 - Conserva todos los controladores de video, audio y red
-- Después de la instalación, el sistema arrancará directamente en terminal fija
-- No se requiere intervención del usuario durante el proceso principal
+- Después de la instalación, el sistema arrancará directamente en terminal fija (Openbox)
+- No requiere intervención del usuario durante el proceso principal
 - Se recomienda hacer una copia de seguridad de datos importantes antes de continuar
 
 8. SOPORTE Y ACTUALIZACIONES
------------------------------
+----------------------------
 - Repositorio oficial: https://github.com/XONIDU/xoniant32
-- Para actualizar: sudo xoni-update
+- Para actualizar scripts: sudo xoni-update
+- Para instalar herramientas XONI: xoni-install <herramienta>
 - Reportar problemas: xonidu@gmail.com
-
-#Somos XONIDU
-#Creador: Darian Alberto Camacho Salas
