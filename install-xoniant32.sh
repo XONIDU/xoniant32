@@ -1,17 +1,17 @@
 #!/bin/bash
-# XONIANT32 ULTIMATE - INSTALADOR TODO EN UNO
+# XONIANT32 ULTIMATE - INSTALADOR MINIMALISTA
 # Autor: Darian Alberto Camacho Salas
 # Repositorio: https://github.com/XONIDU/xoniant32
-# Version: 1.31.1
+# Version: 1.31.2
 #
 # Este script:
-# 1. Configura DNS y red para garantizar conectividad
-# 2. Elimina paquetes innecesarios
-# 3. Conserva todos los controladores gráficos y multimedia
-# 4. Instala Openbox, terminal fija y atajos
-# 5. Configura auto-login
-# 6. Instala scripts XONI
-# 7. Configura actualización desde GitHub
+# 1. Configura DNS y red
+# 2. Elimina paquetes INNECESARIOS (no gráficos)
+# 3. Conserva TODOS los controladores gráficos, Xorg, ALSA, Connman
+# 4. Instala solo lo esencial: Openbox, urxvt, scripts XONI
+# 5. NO instala herramientas multimedia (mpv, yt-dlp, ffmpeg)
+# 6. Configura terminal fija, atajos, auto-login
+# 7. Las herramientas XONI se instalan después con xoni-install
 
 set -euo pipefail
 trap 'echo -e "\033[0;31m[ERROR] Falló en la línea $LINENO\033[0m" >&2' ERR
@@ -40,23 +40,16 @@ fi
 # 2. CONFIGURAR DNS Y RED
 # ============================================
 info "Configurando DNS y red..."
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
+echo "nameserver 8.8.4.4" >> /etc/resolv.conf
 
-# Configurar DNS manualmente
-echo "nameserver 8.8.8.8" | tee /etc/resolv.conf
-echo "nameserver 8.8.4.4" | tee -a /etc/resolv.conf
-
-# Configurar dhclient para que los cambios sean permanentes
-if [ -f /etc/dhcp/dhclient.conf ]; then
-    if ! grep -q "prepend domain-name-servers" /etc/dhcp/dhclient.conf; then
-        echo "prepend domain-name-servers 8.8.8.8, 8.8.4.4;" >> /etc/dhcp/dhclient.conf
-    fi
+if [ -f /etc/dhcp/dhclient.conf ] && ! grep -q "prepend domain-name-servers" /etc/dhcp/dhclient.conf; then
+    echo "prepend domain-name-servers 8.8.8.8, 8.8.4.4;" >> /etc/dhcp/dhclient.conf
 fi
 
-# Reiniciar servicios de red
 sv restart dhcpcd 2>/dev/null || true
 sv restart connman 2>/dev/null || true
 
-# Probar conectividad
 if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
     warn "No hay conexión a internet. Verifica tu red."
 fi
@@ -66,32 +59,32 @@ fi
 # ============================================
 clear
 echo "========================================"
-echo "   XONIANT32 ULTIMATE - TODO EN UNO    "
+echo "   XONIANT32 ULTIMATE - MINIMALISTA   "
 echo "   by Darian Alberto Camacho Salas     "
 echo "========================================"
 echo ""
-echo "Este script:"
-echo "  ✓ Configura DNS y red"
-echo "  ✓ Elimina paquetes innecesarios"
-echo "  ✓ Conserva controladores gráficos"
-echo "  ✓ Configura terminal fija"
-echo "  ✓ Instala scripts XONI"
-echo "  ✓ Configura actualización desde GitHub"
+echo "Este script ELIMINA paquetes INNECESARIOS"
+echo "pero CONSERVA todo lo GRÁFICO y multimedia."
 echo ""
-echo "ELIMINARÁ (si los tienes):"
+echo "ELIMINARÁ (si existen):"
 echo "  - Impresión (CUPS)"
 echo "  - Bluetooth"
-echo "  - Wicd"
+echo "  - Wicd (gestor alternativo)"
 echo "  - Scanner (saned)"
 echo "  - Juegos preinstalados"
-echo "  - Otros gestores (icewm, fluxbox, jwm)"
+echo "  - Otros gestores de ventanas (icewm, fluxbox, jwm)"
 echo "  - Documentación (man pages)"
+echo "  - Herramientas de desarrollo"
 echo ""
 echo "CONSERVARÁ:"
 echo "  - Todos los controladores gráficos"
 echo "  - Xorg completo"
 echo "  - ALSA y PulseAudio"
-echo "  - Codecs multimedia"
+echo "  - Connman (red)"
+echo "  - Openbox, terminal fija, scripts XONI"
+echo ""
+echo "NO INSTALARÁ herramientas multimedia (mpv, etc.)"
+echo "Las herramientas XONI se instalan después con xoni-install"
 echo ""
 echo "INICIARÁ DIRECTAMENTE EN TERMINAL (sin escritorio)"
 echo "========================================"
@@ -106,7 +99,7 @@ info "Actualizando repositorios..."
 apt update || warn "Error en apt update, continuando..."
 
 # ============================================
-# 5. ELIMINAR PAQUETES INNECESARIOS
+# 5. ELIMINAR PAQUETES INNECESARIOS (NO GRÁFICOS)
 # ============================================
 info "Eliminando paquetes innecesarios..."
 
@@ -120,53 +113,20 @@ apt purge -y man-db manpages info 2>/dev/null || true
 apt purge -y build-essential gcc g++ make cmake automake autoconf 2>/dev/null || true
 
 # ============================================
-# 6. INSTALAR PAQUETES ESENCIALES
+# 6. INSTALAR PAQUETES ESENCIALES (SIN MULTIMEDIA)
 # ============================================
 info "Instalando paquetes esenciales..."
-
-apt install -y git curl wget htop nano alsa-utils pulseaudio pavucontrol
-apt install -y xorg xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-video-vesa
+apt install -y git curl wget htop nano alsa-utils
 apt install -y openbox obconf rxvt-unicode
-apt install -y mpv yt-dlp ffmpeg
 apt install -y xclip xsel connman
 
-# Controladores Intel (opcional)
-apt install -y xserver-xorg-video-intel 2>/dev/null || true
-
 # ============================================
-# 7. CONFIGURAR MPV
+# 7. CONFIGURAR URXVT (COPIA/PEGA CON RATÓN)
 # ============================================
-info "Configurando mpv..."
-mkdir -p /etc/mpv
-cat > /etc/mpv/mpv.conf << 'EOF'
-vo=x11
-ao=alsa
-cache=yes
-cache-secs=15
-profile=fast
-vd-lavc-fast
-vd-lavc-skip-loop-filter=all
-no-sub
-no-osc
-no-osd-bar
-no-window-dragging
-keepaspect-window
-geometry=640x360
-x11-bypass-compositor=yes
-ontop
-msg-level=all=error
-EOF
+info "Configurando urxvt..."
 
 TARGET_USER="${SUDO_USER:-$USER}"
 USER_HOME="/home/$TARGET_USER"
-mkdir -p "$USER_HOME/.config/mpv"
-cp /etc/mpv/mpv.conf "$USER_HOME/.config/mpv/"
-chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config/mpv"
-
-# ============================================
-# 8. CONFIGURAR URXVT (COPIA/PEGA CON RATÓN)
-# ============================================
-info "Configurando urxvt..."
 
 mkdir -p "$USER_HOME/.urxvt/ext"
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.urxvt"
@@ -205,7 +165,7 @@ EOF
 chown "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources"
 
 # ============================================
-# 9. CONFIGURAR OPENBOX (TERMINAL FIJA)
+# 8. CONFIGURAR OPENBOX (TERMINAL FIJA)
 # ============================================
 info "Configurando Openbox..."
 
@@ -224,9 +184,6 @@ cat > "$USER_HOME/.config/openbox/rc.xml" << 'EOF'
       <position force="yes"><x>0</x><y>0</y></position>
     </application>
     <application class="URxvt" name="urxvt" title="!principal">
-      <layer>above</layer>
-    </application>
-    <application class="Mpv">
       <layer>above</layer>
     </application>
   </applications>
@@ -256,7 +213,7 @@ EOF
 cat > "$USER_HOME/.config/openbox/menu.xml" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <openbox_menu>
-  <menu id="root-menu" label="Xoniant32 Ultimate">
+  <menu id="root-menu" label="Xoniant32">
     <item label="Nueva terminal (Ctrl+Alt+T)">
       <action name="Execute"><command>urxvt</command></action>
     </item>
@@ -294,7 +251,7 @@ EOF
 chmod +x "$USER_HOME/.xinitrc"
 
 # ============================================
-# 10. CONFIGURAR CONNMAN
+# 9. CONFIGURAR CONNMAN
 # ============================================
 info "Configurando connman..."
 mkdir -p /etc/connman
@@ -307,7 +264,7 @@ EOF
 sv restart connman 2>/dev/null || true
 
 # ============================================
-# 11. FORZAR OPENBOX COMO ÚNICA SESIÓN
+# 10. FORZAR OPENBOX COMO ÚNICA SESIÓN
 # ============================================
 info "Forzando Openbox como única sesión..."
 
@@ -327,7 +284,7 @@ for wm in icewm fluxbox jwm; do
 done
 
 # ============================================
-# 12. CONFIGURAR AUTO-LOGIN
+# 11. CONFIGURAR AUTO-LOGIN
 # ============================================
 info "Configurando auto-login..."
 
@@ -378,7 +335,7 @@ EOF
 fi
 
 # ============================================
-# 13. CREAR SCRIPTS XONI
+# 12. CREAR SCRIPTS XONI (SIN INSTALAR HERRAMIENTAS)
 # ============================================
 info "Creando scripts XONI..."
 
@@ -388,7 +345,7 @@ REPO_BASE="https://github.com/XONIDU"
 cd "$HOME"
 TOOL="${1:-}"
 if [ -z "$TOOL" ]; then
-    echo "Herramientas: xonitube, xonigraf, xonichat, xonimail"
+    echo "Herramientas: xonitube, xonigraf, xonichat, xonimail, xonidip, xoniconver, xonidate, xonimet, xoniweb"
     read -p "Instalar: " TOOL
 fi
 if [ -n "$TOOL" ]; then
@@ -428,7 +385,7 @@ cat > /usr/local/bin/xoni-menu << 'EOF'
 while true; do
     clear
     echo "============================="
-    echo "  XONIANT32 ULTIMATE - MENÚ"
+    echo "  XONIANT32 - MENÚ PRINCIPAL"
     echo "============================="
     echo "1) Nueva terminal (Ctrl+Alt+T)"
     echo "2) Instalar herramienta XONI"
@@ -453,17 +410,17 @@ cat > /usr/local/bin/xoni-help << 'EOF'
 #!/bin/bash
 cat << 'HELP'
 ========================================
-   XONIANT32 ULTIMATE - AYUDA
+   XONIANT32 - AYUDA
 ========================================
 COMANDOS:
   xoni-menu     : Menú interactivo
-  xoni-install  : Instalar herramientas
+  xoni-install  : Instalar herramientas XONI
   xoni-update   : Actualizar xoniant32
   sudo connmanctl : Configurar WiFi
 
 ATAJOS:
   Alt+Tab       : Cambiar ventana
-  Alt+F4        : Cerrar ventana
+  Alt+F4        : Cerrar ventana (excepto principal)
   Alt+F10       : Maximizar
   Win+↑         : Maximizar
   Ctrl+Alt+T    : Nueva terminal
@@ -476,7 +433,6 @@ RATÓN:
 
 ✓ Terminal principal NO SE PUEDE CERRAR
 ✓ Ventanas emergentes se ven ENCIMA
-✓ Actualización con xoni-update
 
 Repositorio: https://github.com/XONIDU/xoniant32
 HELP
@@ -485,12 +441,12 @@ EOF
 chmod +x /usr/local/bin/xoni-*
 
 # ============================================
-# 14. CONFIGURAR .BASHRC Y MENSAJE DE BIENVENIDA
+# 13. CONFIGURAR .BASHRC Y MENSAJE DE BIENVENIDA
 # ============================================
 cat >> "$USER_HOME/.bashrc" << 'EOF'
 
 echo "========================================"
-echo "   XONIANT32 ULTIMATE - OPTIMIZADO"
+echo "   XONIANT32 - TERMINAL FIJA"
 echo "   by Darian Alberto Camacho Salas"
 echo "========================================"
 echo "Comandos: xoni-help, xoni-menu, xoni-install, xoni-update"
@@ -499,7 +455,7 @@ echo "ATAJOS: Alt+Tab, Ctrl+Alt+T, Win+x, Win+q"
 echo "RATÓN: Seleccionar copia, click derecho pega"
 echo ""
 echo "✓ Terminal principal NO SE PUEDE CERRAR"
-echo "✓ Actualizar con: sudo xoni-update"
+echo "✓ Herramientas XONI: xoni-install <nombre>"
 echo "========================================"
 EOF
 
@@ -507,7 +463,7 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.config" "$USER_HOME/.xinitrc
 chown -R "$TARGET_USER":"$TARGET_USER" "$USER_HOME/.Xresources" "$USER_HOME/.urxvt"
 
 # ============================================
-# 15. LIMPIEZA FINAL
+# 14. LIMPIEZA FINAL
 # ============================================
 info "Eliminando dependencias no usadas..."
 apt autoremove --purge -y
@@ -517,28 +473,26 @@ apt clean
 apt autoclean
 
 # ============================================
-# 16. FINALIZACIÓN
+# 15. FINALIZACIÓN
 # ============================================
 echo "========================================"
 echo "   INSTALACIÓN COMPLETADA               "
 echo "========================================"
 echo ""
-echo "✅ TODO EN UNO:"
-echo "   ✓ DNS y red configurados"
-echo "   ✓ Paquetes innecesarios eliminados"
-echo "   ✓ Controladores conservados"
-echo "   ✓ Openbox configurado"
-echo "   ✓ Terminal fija (no se puede cerrar)"
-echo "   ✓ Ventanas emergentes encima"
-echo "   ✓ Atajos completos"
-echo "   ✓ Ratón copiar/pegar"
+echo "✅ OPTIMIZACIONES REALIZADAS:"
+echo "   ✓ Eliminados paquetes innecesarios"
+echo "   ✓ Conservados todos los controladores gráficos"
+echo "   ✓ Forzado Openbox como única sesión"
+echo "   ✓ Terminal principal OCULTA el escritorio"
+echo "   ✓ Ventanas emergentes se ven ENCIMA"
+echo "   ✓ Atajos completos + ratón copiar/pegar"
 echo "   ✓ Scripts XONI instalados"
 echo "   ✓ xoni-update configurado"
 echo ""
-echo "▶ Para instalar xonitube:  xoni-install xonitube"
-echo "▶ Para actualizar:         sudo xoni-update"
-echo "▶ Para abrir el menú:      xoni-menu"
-echo "▶ Para ayuda:              xoni-help"
+echo "▶ Para instalar herramientas XONI:  xoni-install xonitube"
+echo "▶ Para actualizar el sistema:       sudo xoni-update"
+echo "▶ Para abrir el menú:               xoni-menu"
+echo "▶ Para ayuda:                       xoni-help"
 echo ""
 echo "Reinicia ahora: sudo reboot"
 echo ""
