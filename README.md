@@ -1,28 +1,28 @@
-# XONIANT32 v1.32.1
-
+# XONIANT32 ULTIMATE v1.33.1
 ### by Darian Alberto Camacho Salas
 
 ---
 
 ## Descripción
 
-**XONIANT32** es una distribución Linux especializada que transforma antiX Linux en un entorno de terminal gráfica fija, diseñada específicamente para hardware de 32 bits con recursos limitados, como la ASUS Eee PC 900. Su propósito es proporcionar una base ultra ligera pero completamente funcional para ejecutar herramientas XONI (xonitube, xonigraf, xonichat, xonimail) sin perder compatibilidad con controladores gráficos, de audio y multimedia.
+XONIANT32 ULTIMATE es una distribución Linux ligera basada en antiX Linux 23.2 (32 bits), diseñada para hardware antiguo con recursos limitados como la ASUS Eee PC 900. Su propósito es transformar el sistema en un entorno de terminal gráfica fija, proporcionando una base ultra ligera pero completamente funcional para ejecutar herramientas XONI (xonitube, xonigraf, xonichat, xonimail, etc.) sin perder compatibilidad con controladores gráficos, de audio y multimedia.
 
-Este proyecto forma parte del ecosistema **XONIDU**, una organización dedicada al desarrollo de código abierto con énfasis en automatización, optimización de procesos y democratización del acceso a herramientas tecnológicas eficientes.
+Este proyecto forma parte del ecosistema XONIDU, una organización dedicada al desarrollo de código abierto con énfasis en automatización, optimización de procesos y democratización del acceso a herramientas tecnológicas eficientes.
 
-**Versión actual:** 1.32.1 (Primera versión estable y funcional)
+**Versión actual:** 1.33.1
 
 ---
 
 ## Características
 
-- Terminal principal fija que ocupa toda la pantalla, sin bordes, sin botón de cerrar.
-- Ventanas emergentes (mpv, nuevas terminales) se ven ENCIMA de la terminal principal.
-- Soporte completo de ratón: seleccionar texto copia, click derecho pega.
-- Atajos de teclado completos: Alt+Tab, Alt+F4, Alt+F10, Win+↑, Ctrl+Alt+T, Win+x, Win+q.
-- Actualización desde GitHub: `xoni-update` mantiene tu sistema al día.
-- Instalación modular: `xoni-install` descarga herramientas XONI bajo demanda.
+- Terminal principal fija que ocupa toda la pantalla, sin bordes, sin botón de cerrar. No se puede cerrar ni mover.
+- Ventanas emergentes con controles completos: minimizar, maximizar, cerrar, mover con Alt+clic, redimensionar con Alt+clic derecho.
+- Soporte completo de ratón: seleccionar texto copia automáticamente, click derecho pega.
+- Atajos de teclado: Alt+Tab, Alt+F4, Alt+F10, Win+↑, Win+↓, Ctrl+Alt+T, Win+x, Win+q.
+- Actualización desde GitHub: xoni-update mantiene tu sistema al día.
+- Instalación modular: xoni-install descarga herramientas XONI bajo demanda.
 - Optimización de recursos: elimina paquetes innecesarios pero conserva todos los controladores gráficos y multimedia.
+- Consumo de RAM: 80-120 MB al iniciar.
 
 ---
 
@@ -39,7 +39,7 @@ Este proyecto forma parte del ecosistema **XONIDU**, una organización dedicada 
 
 Puedes descargar la ISO base de antiX-23.2 (32 bits) desde el siguiente enlace:
 
-[https://sourceforge.net/projects/antix-linux/files/Final/antiX-23.2/antiX-23.2_386-full.iso/download](https://sourceforge.net/projects/antix-linux/files/Final/antiX-23.2/antiX-23.2_386-full.iso/download)
+https://sourceforge.net/projects/antix-linux/files/Final/antiX-23.2/antiX-23.2_386-full.iso/download
 
 También puedes usar los mirrors oficiales de antiX para obtener la ISO.
 
@@ -72,16 +72,16 @@ chmod +x install-xoniant32.sh
 sudo ./install-xoniant32.sh
 ```
 
-El script te pedirá confirmación una vez y luego hará todo automáticamente.
+El script te pedirá confirmación una vez y luego hará todo automáticamente. La duración varía entre 10 y 30 minutos.
 
 ---
 
 ## Primer inicio después de la instalación
 
 1. Reinicia el sistema: `sudo reboot`
-2. Inicia sesión con tu usuario habitual (`demo`/`demo` si es la primera vez)
+2. Inicia sesión con tu usuario habitual (demo/demo si es la primera vez)
 3. El sistema arrancará directamente en una terminal negra ocupando toda la pantalla
-4. La terminal principal **NO SE PUEDE CERRAR**
+4. La terminal principal NO SE PUEDE CERRAR
 
 ---
 
@@ -101,6 +101,11 @@ xoni-install xonitube    # Buscador y reproductor de YouTube
 xoni-install xonigraf    # Graficador matemático
 xoni-install xonichat    # Chat con IA (Gemini)
 xoni-install xonimail    # Cliente de correo
+xoni-install xonidip     # Generador de diplomas
+xoni-install xoniconver  # Conversor de formatos
+xoni-install xonidate    # Citas aleatorias
+xoni-install xonimet     # Extractor de metadatos
+xoni-install xoniweb     # Análisis de malware
 ```
 
 ---
@@ -113,6 +118,7 @@ xoni-install xonimail    # Cliente de correo
 | `Alt+F4` | Cerrar ventana actual (excepto la principal) |
 | `Alt+F10` | Maximizar/restaurar ventana |
 | `Win+↑` | Maximizar ventana |
+| `Win+↓` | Minimizar ventana |
 | `Ctrl+Alt+T` | Abrir nueva terminal (emergente) |
 | `Win+x` | Abrir menú principal |
 | `Win+q` | Cerrar sesión |
@@ -126,6 +132,15 @@ xoni-install xonimail    # Cliente de correo
 - `Ctrl+Shift+C` / `Ctrl+Insert` → copiar
 - `Ctrl+Shift+V` / `Shift+Insert` → pegar
 
+### Controles de ventanas emergentes
+
+- Click en botón _ → minimizar
+- Click en botón □ → maximizar/restaurar
+- Click en botón ✕ → cerrar
+- Alt + clic izquierdo + arrastrar → mover
+- Alt + clic derecho + arrastrar → redimensionar
+- Doble clic en barra de título → maximizar/restaurar
+
 ---
 
 ## Conectarse a WiFi
@@ -134,7 +149,7 @@ xoni-install xonimail    # Cliente de correo
 sudo connmanctl
 ```
 
-Dentro de `connmanctl`:
+Dentro de connmanctl:
 
 ```bash
 agent on
@@ -153,7 +168,7 @@ quit
 alsamixer
 ```
 
-Usa flechas para subir/bajar volumen, `Esc` para salir.
+Usa flechas para subir/bajar volumen, Esc para salir.
 
 ---
 
@@ -163,7 +178,7 @@ Usa flechas para subir/bajar volumen, `Esc` para salir.
 sudo xoni-update
 ```
 
-Esto clona/actualiza el repositorio desde GitHub y sincroniza los cambios en `/usr/local/bin/`.
+Esto clona/actualiza el repositorio desde GitHub y sincroniza los cambios en /usr/local/bin/.
 
 ---
 
@@ -187,7 +202,6 @@ Esto clona/actualiza el repositorio desde GitHub y sincroniza los cambios en `/u
 ### El escritorio sigue apareciendo
 
 Verificar que Openbox está configurado como sesión por defecto:
-
 ```bash
 cat /etc/lightdm/lightdm.conf.d/50-xoniant32.conf
 ```
@@ -195,7 +209,6 @@ cat /etc/lightdm/lightdm.conf.d/50-xoniant32.conf
 ### No se conecta WiFi
 
 Reiniciar connman:
-
 ```bash
 sudo sv restart connman   # antiX usa runit
 sudo connmanctl
@@ -204,18 +217,16 @@ sudo connmanctl
 ### El video de XoniTube no se ve
 
 Verificar backend de mpv:
-
 ```bash
 mpv --vo=help
 mpv --vo=x11 https://youtu.be/...
 ```
 
-### No aparece el menú con Win+x
+### No aparecen los botones de ventana
 
-Verificar atajos en Openbox:
-
+Verificar que Openbox tiene decoraciones habilitadas:
 ```bash
-grep "W-x" ~/.config/openbox/rc.xml
+grep "decor" ~/.config/openbox/rc.xml
 ```
 
 ---
@@ -224,7 +235,7 @@ grep "W-x" ~/.config/openbox/rc.xml
 
 ```
 xoniant32/
-├── install-xoniant32.sh   # Script de instalación principal (v1.32.1)
+├── install-xoniant32.sh   # Script de instalación principal (v1.33.1)
 ├── README.md              # Este archivo
 ├── requisitos.txt         # Dependencias y requisitos
 └── .gitignore             # Archivos ignorados
@@ -237,16 +248,18 @@ xoniant32/
 - **Autor:** Darian Alberto Camacho Salas
 - **Email:** xonidu@gmail.com
 - **Web:** https://xonipage.xonidu.com/
-- **GitHub:** [@XONIDU](https://github.com/XONIDU)
+- **GitHub:** @XONIDU
 - **Organización:** XONIDU
 
 ---
 
 ## Enlaces útiles
 
-- Repositorio XONIANT32: [https://github.com/XONIDU/xoniant32](https://github.com/XONIDU/xoniant32)
-- Documentación en Calaméo: [https://www.calameo.com/read/00817762416445fe17e96](https://www.calameo.com/read/00817762416445fe17e96)
-- antiX Linux oficial: [https://antixlinux.com/](https://antixlinux.com/)
-- Foro de antiX: [https://www.antixforum.com/](https://www.antixforum.com/)
+- Repositorio XONIANT32: https://github.com/XONIDU/xoniant32
+- Documentación en Calaméo: https://www.calameo.com/read/008177624cf0d7f2c0480
+- antiX Linux oficial: https://antixlinux.com/
+- Foro de antiX: https://www.antixforum.com/
 
-## Cualquier duda o comentario, contactanos
+---
+
+
