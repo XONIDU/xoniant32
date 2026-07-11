@@ -245,7 +245,7 @@ xoniant32/
 
 ## Contacto y créditos
 
-- **Autor:** Darian Alberto Camacho Salas
+- **Creador:** Darian Alberto Camacho Salas
 - **Email:** xonidu@gmail.com
 - **Web:** https://xonipage.xonidu.com/
 - **GitHub:** @XONIDU
